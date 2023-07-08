@@ -1,4 +1,4 @@
-# Inventory and Billingpwd Management System
+# Inventory and Billing Management System
 
 *"Inventory and Billing Management System powered by Flask"*
 
