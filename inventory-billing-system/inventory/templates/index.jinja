@@ -1,7 +1,7 @@
 {% extends 'base-template.jinja' %}
 {% block content %}
     <div class="container">
-    <h3 align="center">Description</h3>
+    <h3 align="center">Invoice Summary</h3>
         <div style="height: 50%;width: 100%; float: left">
         {% if not invoices %}
         <div style="float: left;width:50%;">
@@ -10,26 +10,10 @@
         {% else %}
         <div style="float:left;width:50%">
             <table class="table">
-                <thead><tr><th scope="col">loc_id</th><th scope="col">Name</th></tr></thead>
+                <thead><tr><th scope="col">Customer Name</th><th scope="col">Amount</th></tr></thead>
                 <tbody>
                     {% for invoice in invoices %}
-                    <tr><td>{{ invoice[0] }}</td><td>{{ invoice[1] }}</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-        {% if not products %}
-        <div style="float: right;width: 50%;">
-            <h3 align="center" class="font-weight-light">No Product Data Available Yet</h3>
-        </div>
-        {% else %}
-        <div style="float:right;width:50%;">
-            <table class="table">
-                <thead><tr><th scope="col">prod_id</th><th scope="col">Name</th><th scope="col">Count</th></tr></thead>
-                <tbody>
-                    {% for product in products %}
-                    <tr><td>{{ product[0] }}</td><td>{{ product[1] }}</td><td>{{ product[2] }}</td></tr>
+                    <tr><td>{{ invoice[1] }}</td><td>{{ invoice[2] }}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -39,7 +23,7 @@
     </div>
 
     <div class="container" style="float: contour;" align="center">
-    <h3 align="center">Summary</h3>
+    <h3 align="center">Product Summary</h3>
         <div class="form-horizontal" title="Summary">
         {% if not summary %}
         <h3 align="center" class="font-weight-light">Summary not available yet</h3>

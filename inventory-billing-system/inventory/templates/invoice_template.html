@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+</head>
+<style>
+   table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    /* Apply different background color to the additional charges rows */
+    .additional-charges-row {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      border: 2px dashed #000; /* Dashed border for odd rows */
+    }
+</style>
+<body>
+    <h1>Invoice</h1>
+    <table>
+        <p>Invoice Number: {{ invoice_data.invoice_number }}</p>
+        <p>Date: {{ invoice_data.date }}</p>
+        <p>Customer: {{ invoice_data.customer_name }}</p>
+        <p>Address: {{ invoice_data.address }}</p>
+        <p>Agent: {{ invoice_data.agent_name }}</p>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>G.Wt.</th>
+                <th>L.Wt.</th>
+                <th>N.Wt.</th>
+                <th>Rate</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in invoice_items %}
+                <tr>
+                    <td>{{ item.Product }}</td>
+                    <td>{{ item.Quantity }}</td>
+                    <td>{{ item.Gross_Wt }}</td>
+                    <td>{{ item.Less_Wt }}</td>
+                    <td>{{ item.Net_Wt}}</td>
+                    <td>{{ item.Rate}}</td>
+                    <td>{{ item.Amount}}</td>
+                </tr>
+                <tr class="detached-row">
+                    <td colspan="7"> {{ item.Quantity_Str}} </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+        <tbody class="additional-charges-row">
+            <tr>
+              <td colspan="6">Subtotal</td>
+              <td>{{invoice_data.total}}</td>
+            </tr>
+            <tr>
+          </tbody>
+    </table>
+    <table>
+        <thead>
+            <tr>
+                <th>Aadhat</th>
+                <th>Taulai</th>
+                <th>Majdoori</th>
+                <th>Packing</th>
+                <th>Other</th>
+            </tr>
+        </thead>
+    </table>
+</body>
+</html>

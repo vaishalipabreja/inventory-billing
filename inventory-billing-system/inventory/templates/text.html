@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Addition Calculator</title>
+</head>
+<body>
+    <h1>Addition Calculator</h1>
+    
+    <button onclick="addNumbers()">Add Numbers</button>
+    <div id="input-container">
+        <input type="number" id="number-input" placeholder="Enter a number">
+        <button onclick="addInput()">+</button>
+    </div>
+    <div id="result-container">
+        <p id="result">Result: 0</p>
+    </div>
+
+    <script>
+        var numbers = [];
+
+        function addInput() {
+            var input = document.getElementById("number-input");
+            var inputValue = parseFloat(input.value);
+
+            if (!isNaN(inputValue)) {
+                numbers.push(inputValue);
+                input.value = "";
+            }
+        }
+
+        function addNumbers() {
+            var sum = 0;
+
+            for (var i = 0; i < numbers.length; i++) {
+                sum += numbers[i];
+            }
+
+            document.getElementById("result").textContent = "Result: " + sum;
+        }
+    </script>
+</body>
+</html>
