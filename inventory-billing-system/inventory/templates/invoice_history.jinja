@@ -1,0 +1,39 @@
+{% extends 'base-template.jinja' %}
+{% block content %}
+    <div class="container">
+    <h3 align="center">Invoice Summary</h3>
+        <div style="height: 50%;width: 100%; float: left">
+        <form id="searchForm" action = "{{ url_for('invoice_history') }}" method = "POST">
+        <label for="date">Enter Date:</label>
+        <input type="date" name="date">
+        <label for="customer">Enter Customer Details:</label>
+        <input name="customer">
+        <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "submit" /><br></td>
+        </form>
+        {% if not invoices %}
+        <div style="float: left;width:50%;">
+            <h3 align="center" class="font-weight-light">No Invoice Data Available Yet</h3>
+        </div>
+        {% else %}
+        <div style="float:left;width:50%">
+            <table class="table">
+                <thead><tr>
+                <th scope="col">Invoice Number</th>
+                <th scope="col">Customer Name</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Remaining Status</th>
+                </tr></thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr><td>{{ invoice[0] }}</td><td>{{ invoice[1] }}</td><td>{{ invoice[2] }}</td><td>{{ invoice[3] }}</td>
+                            </form> 
+                            </div>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+{% endblock %}

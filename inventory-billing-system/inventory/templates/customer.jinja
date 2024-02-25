@@ -5,37 +5,26 @@
         <thead>
             <th scope="col">Customer Name</th>
             <th scope="col">Agent Name</th>
+            <th scope="col">Total Amount</th>
         </thead>
         <tbody>
             {% for customer in customers %}
                 <tr>
-                    <td>{{ customer[0] }}</td><td>{{ customer[1] }}</td>
+                    <td>{{ customer[0] }}</td><td>{{ customer[1] }}</td> <td>{{ customer[2] }}</td>
                     <td>
-                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ customer[0] }}" >edit</button><br>
+                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ customer[0] }}" >Record Payment</button><br>
                         <div id="edit_{{ customer[0] }}" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="trans_message" aria-hidden="true">
-                            <form action="{{ url_for('edit', type='customer') }}" method="post" class="base_form">
+                            <form action="{{ url_for('record') }}" method="post" class="base_form">
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content">
-                                    <div class="modal-body"><input name="customer_name" placeholder="{{ customer[1] }}"></div>
                                     <div class="modal-body">
-                                        <script>
-                                            document.getElementById("input_{{ customer[0] }}").oninput = function(){
-                         f                        let all = document.getElementsByClassName("btn btn-primary");
-                                                for(let i=0;i<all.length;i++){
-                                                    all[i].disabled = true;
-                                                }
-                                                let in_qty = parseInt(document.getElementById("input_{{ customer[0] }}").value);
-                                                if (in_qty > {{ customer[2] }}){
-                                                    for(let i=0;i<all.length;i++){
-                                                        all[i].disabled = false;
-                                                    }
-                                                }
-                                            };
-                                        </script>
-                                        <text class="font-weight-light">(only increase count)</text>
+                                     <input name="discount" placeholder="Discount" id="input_{{ customer[0] }}" type="number">
                                     </div>
+                                    <div class="modal-body">
+                                     <input name="amount" placeholder="Amount Paid" id="input_{{ customer[0] }}" type="number">
+                                     </div>
                                     <div class="modal-footer">
-                                        <input name="prod_id" value="{{ customer[0] }}" hidden aria-hidden="true">
+                                    <input name="customer_name" value="{{ customer[0] }}" hidden aria-hidden="true">
                                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                                             <button type="submit" class="btn btn-primary">Save changes</button>
                                     </div>

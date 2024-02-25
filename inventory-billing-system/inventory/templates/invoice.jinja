@@ -41,7 +41,13 @@
                     <button class="btn btn-info" type="button" id="addProduct">Add Product</button>
                     <br><label for="paid_amount">Amount Paid:</label><br>
                     <tr><input type="number" form="invoice" step="0.01" name = "paid_amount" placeholder="Amount Paid" value=0 required><br></tr>
-                    <br> <input type= "Submit" class="btn btn-info btn-group-toggle" value= "Submit" /><br>
+                    <br><label for="adhat">Additional Charges:</label><br>
+                    Adhat: <tr><input type="number" form="invoice" step="0.01" name = "adhat" placeholder="Adhat" value=0 required></tr>
+                    Taulai: <tr><input type="number" form="invoice" step="0.01" name = "taulai" placeholder="Taulai" value=0 required></tr>
+                    Majdoori: <tr><input type="number" form="invoice" step="0.01" name = "majdoori" placeholder="Majdoori" value=0 required></tr>
+                    Packing: <tr><input type="number" form="invoice" step="0.01" name = "packing" placeholder="Packing" value=0 required></tr>
+                    Other: <tr><input type="number" form="invoice" step="0.01" name = "other" placeholder="Packing" value=0 required></tr>
+                    <br><br><input type= "Submit" class="btn btn-info btn-group-toggle" value= "Submit" /><br>
                 </form>
             </tr>
         </tbody>
@@ -99,5 +105,13 @@
             const row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
         }
+
+        function triggerButtonClick() {
+            var buttonElement = document.getElementById('addProduct');
+            if (buttonElement) {
+                buttonElement.click();
+            }
+        }
+        triggerButtonClick();
     </script>
 {% endblock %}

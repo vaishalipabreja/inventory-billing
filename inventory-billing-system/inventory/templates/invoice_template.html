@@ -22,7 +22,7 @@
       background-color: #f2f2f2;
       font-weight: bold;
     }
-    tr:nth-child(even) {
+    .dotted tr:nth-child(even) {
       border: 2px dashed #000; /* Dashed border for odd rows */
     }
 </style>
@@ -47,7 +47,7 @@
                 <th>Amount</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody class="dotted">
             {% for item in invoice_items %}
                 <tr>
                     <td>{{ item.Product }}</td>
@@ -66,7 +66,7 @@
         <tbody class="additional-charges-row">
             <tr>
               <td colspan="6">Subtotal</td>
-              <td>{{invoice_data.total}}</td>
+              <td>{{invoice_data.sub_total}}</td>
             </tr>
             <tr>
           </tbody>
@@ -74,12 +74,30 @@
     <table>
         <thead>
             <tr>
-                <th>Aadhat</th>
-                <th>Taulai</th>
-                <th>Majdoori</th>
-                <th>Packing</th>
-                <th>Other</th>
+                <td>Aadhat</td>
+                <td>Taulai</td>
+                <td colspan="2">Majdoori</td>
+                <td>Packing</td>
+                <td colspan="2">Other</td>
             </tr>
+            <tr>
+                <td>{{ invoice_data.adhat }}</td>
+                <td>{{ invoice_data.taulai }}</td>
+                <td colspan="2">{{ invoice_data.majdoori }}</td>
+                <td>{{ invoice_data.packing }}</td>
+                <td colspan="2">{{ invoice_data.other }}</td>
+            </tr>
+            <tbody class="additional-charges-row">
+                <tr>
+                  <td colspan="6">Total Charges</td>
+                  <td>{{ invoice_data.total_charges}}</td>
+                </tr>
+                <tr>
+                    <td colspan="6">Net Amount</td>
+                    <td>{{ invoice_data.total}}</td>
+                  </tr>
+                <tr>
+              </tbody>
         </thead>
     </table>
 </body>
