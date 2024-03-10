@@ -3,14 +3,13 @@
 <div class="container">
     <table class="table">
         <thead>
-            <th scope="col">Product ID</th>
             <th scope="col">Product Name</th>
             <th scope="col">Quantity</th>
         </thead>
         <tbody>
             {% for product in products %}
                 <tr>
-                    <td>{{ product[0] }}</td><td>{{ product[1] }}</td><td>{{ product[2] }}</td>
+                    <td>{{ product[1] }}</td><td>{{ product[2] }}</td>
                     <td>
                         <a href="{{ url_for('delete', prod_id=product[0], type='product') }}">
                             <button name="button" type="button" class="btn btn-danger" value= "delete" >delete</button><br>
@@ -56,7 +55,6 @@
             <!-- Inserting data -->
             <tr>
                 <form action = "{{ url_for('product') }}" method = "POST">
-                    <td></td>
                     <td><input name = "prod_name" placeholder="Product Name" required autofocus></td>
                     <td><input name = "prod_qty" placeholder="Quantity" required></td>
                     <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "submit" /><br></td>

@@ -4,10 +4,12 @@
     <h3 align="center">Invoice Summary</h3>
         <div style="height: 50%;width: 100%; float: left">
         <form id="searchForm" action = "{{ url_for('invoice_history') }}" method = "POST">
-        <label for="date">Enter Date:</label>
+        <label for="date">Date:</label>
         <input type="date" name="date">
-        <label for="customer">Enter Customer Details:</label>
+        <label for="customer">Customer Details:</label>
         <input name="customer">
+        <label for="agent">Agent Name:</label>
+        <input name="agent">
         <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "submit" /><br></td>
         </form>
         {% if not invoices %}
@@ -20,12 +22,13 @@
                 <thead><tr>
                 <th scope="col">Invoice Number</th>
                 <th scope="col">Customer Name</th>
+                <th scope="col">Agent Name</th>
+                <th scope="col">Date</th>
                 <th scope="col">Amount</th>
-                <th scope="col">Remaining Status</th>
                 </tr></thead>
                 <tbody>
                     {% for invoice in invoices %}
-                    <tr><td>{{ invoice[0] }}</td><td>{{ invoice[1] }}</td><td>{{ invoice[2] }}</td><td>{{ invoice[3] }}</td>
+                    <tr><td>{{ invoice[0] }}</td><td>{{ invoice[1] }}</td><td>{{ invoice[2] }}</td><td>{{ invoice[3] }}</td> <td>{{ invoice[4] }}</td>
                             </form> 
                             </div>
                         </tr>

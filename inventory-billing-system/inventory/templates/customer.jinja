@@ -12,8 +12,8 @@
                 <tr>
                     <td>{{ customer[0] }}</td><td>{{ customer[1] }}</td> <td>{{ customer[2] }}</td>
                     <td>
-                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ customer[0] }}" >Record Payment</button><br>
-                        <div id="edit_{{ customer[0] }}" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="trans_message" aria-hidden="true">
+                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ customer[0] + customer[1] }}" >Record Payment</button><br>
+                        <div id="edit_{{ customer[0] + customer[1] }}" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="trans_message" aria-hidden="true">
                             <form action="{{ url_for('record') }}" method="post" class="base_form">
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content">
@@ -25,6 +25,7 @@
                                      </div>
                                     <div class="modal-footer">
                                     <input name="customer_name" value="{{ customer[0] }}" hidden aria-hidden="true">
+                                    <input name="agent_name" value="{{ customer[1] }}"  hidden aria-hidden="true">
                                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                                             <button type="submit" class="btn btn-primary">Save changes</button>
                                     </div>

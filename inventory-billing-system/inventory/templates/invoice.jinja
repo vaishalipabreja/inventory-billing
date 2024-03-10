@@ -27,7 +27,7 @@
 	        <label>Customer name:</label>
 	        <select class="form-control select2" form="invoice" name="customer_name" required>
                {% for customer in customers %}
-                <option>{{ customer[0]}}</option>
+                <option>{{ customer[1]+ " (" + customer[2] + ")" }}</option>
                {% endfor %}
 	        </select>
  	</div>
