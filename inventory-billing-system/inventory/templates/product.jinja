@@ -21,9 +21,8 @@
                             <form action="{{ url_for('edit', type='product') }}" method="post" class="base_form">
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content">
-                                    <div class="modal-body"><input name="prod_name" placeholder="{{ product[1] }}"></div>
                                     <div class="modal-body">
-                                        <input name="prod_qty" placeholder="{{ product[2] }}" id="input_{{ product[0] }}" type="number">
+                                        <input name="prod_qty" placeholder="Add product qty" id="input_{{ product[0] }}" type="number">
                                         <script>
                                             document.getElementById("input_{{ product[0] }}").oninput = function(){
                          f                        let all = document.getElementsByClassName("btn btn-primary");

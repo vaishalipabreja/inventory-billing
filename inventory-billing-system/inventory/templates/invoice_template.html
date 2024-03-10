@@ -74,17 +74,15 @@
     <table>
         <thead>
             <tr>
-                <td>Aadhat</td>
-                <td>Taulai</td>
-                <td colspan="2">Majdoori</td>
-                <td>Packing</td>
-                <td colspan="2">Other</td>
+                <td>Packaging</td>
+                <td colspan="2">Transport</td>
+                <td colspan="2">Mandi</td>
+                <td colspan="2">Others</td>
             </tr>
             <tr>
-                <td>{{ invoice_data.adhat }}</td>
-                <td>{{ invoice_data.taulai }}</td>
-                <td colspan="2">{{ invoice_data.majdoori }}</td>
-                <td>{{ invoice_data.packing }}</td>
+                <td>{{ invoice_data.packaging }}</td>
+                <td colspan="2">{{ invoice_data.transport }}</td>
+                <td colspan="2">{{ invoice_data.mandi }}</td>
                 <td colspan="2">{{ invoice_data.other }}</td>
             </tr>
             <tbody class="additional-charges-row">
@@ -95,9 +93,13 @@
                 <tr>
                     <td colspan="6">Net Amount</td>
                     <td>{{ invoice_data.total}}</td>
-                  </tr>
-                <tr>
-              </tbody>
+                    
+                    </tr>
+                    <tr>
+                        <td colspan="8">Additional Comment : {{ invoice_data.comment}}</td>
+                    </tr>
+
+            </tbody>
         </thead>
     </table>
 </body>

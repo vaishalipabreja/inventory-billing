@@ -68,6 +68,17 @@ def init_database():
 
 app.init_db = init_database
 
+def count_numeric_inputs(addition_string):
+    # Initialize a counter for numeric inputs
+    numeric_count = 0
+
+    # Iterate through each character in the string
+    for char in addition_string:
+        # Check if the character is numeric
+        if char.isnumeric():
+            numeric_count += 1
+
+    return numeric_count
 
 def get_customer_id(conn, customer_name, agent_name):
     cursor = conn.cursor()
@@ -79,8 +90,8 @@ def get_customer_id(conn, customer_name, agent_name):
 
 def generate_unique_bill_number():
     conn = sqlite3.connect(DATABASE_NAME)
-    last_bill = conn.execute('SELECT * FROM invoices ORDER BY invoice_id DESC LIMIT 1').fetchone()
-
+    last_bill = conn.execute('SELECT * FROM invoices ORDER BY invoice_time DESC LIMIT 1').fetchone()
+    print(last_bill)
     if last_bill:
         # Increment the last bill number to generate the new bill number
         last_number = int(last_bill[0].split('-')[0])
@@ -90,6 +101,7 @@ def generate_unique_bill_number():
         new_number = 1
 
     # Use the new bill number for the current transaction
+    print(new_number)
     return f"{new_number}-{datetime.utcnow().strftime('%Y')}" 
 
 def calculate(expression):
@@ -109,6 +121,39 @@ def calculate(expression):
 def main_page():
     return invoice_history()
 
+
+@app.route('/customer_details')
+def customer_details():
+    conn = sqlite3.connect(DATABASE_NAME)
+    customer_name = request.args.get('customer_name')
+    agent_name = request.args.get('agent_name')
+    customer_id = get_customer_id(conn, customer_name, agent_name)
+    # Fetch customer details from the database
+
+    if customer_id:
+        # Fetch invoices and payments for the customer
+        invoices_query = "SELECT invoice_id, total_amount, paid_amount, invoice_time FROM invoices WHERE customer_id=?"
+        payments_query = "SELECT payment_id, payment_amount, payment_time FROM payments WHERE customer_id=?"
+
+        invoices = conn.execute(invoices_query, (customer_id,)).fetchall()
+        payments = conn.execute(payments_query, (customer_id,)).fetchall()
+        print(invoices)
+
+        # Pass the data to the template
+        customer_details = {
+            'customer_name': customer_name,
+            'agent_name': agent_name,
+            'invoices': invoices,
+            'payments': payments,
+        }
+
+        # Render your customer details template with the provided customer details
+        return render_template('customer_details.jinja', customer_details=customer_details)
+    else:
+        # Render the 'customer_not_found' template or handle accordingly
+        return render_template('customer_not_found.html')
+    
+
 @app.route("/invoice_history", methods=["POST","GET"])
 def invoice_history():
     conn = sqlite3.connect(DATABASE_NAME)
@@ -125,7 +170,7 @@ def invoice_history():
         if agent:
             conditions.append(f"agent_name LIKE '%{agent}%'")
         query = """SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time, 
-        COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) AS total_amount FROM customers LEFT JOIN invoices ON customers.customer_id = invoices.customer_id"""
+        COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) AS total_amount FROM invoices LEFT JOIN customers ON customers.customer_id = invoices.customer_id"""
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         query+= " GROUP BY customers.customer_name, customers.agent_name ORDER BY invoice_time DESC"
@@ -133,8 +178,8 @@ def invoice_history():
         invoices = conn.execute(query).fetchall()
     else:
         invoices = conn.execute("""SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
-        COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) AS total_amount FROM customers
-        LEFT JOIN invoices ON customers.customer_id = invoices.customer_id
+        COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) AS total_amount FROM invoices
+        LEFT JOIN customers ON customers.customer_id = invoices.customer_id
         GROUP BY customers.customer_name, customers.agent_name
         ORDER BY invoice_time DESC""").fetchall()
 
@@ -216,15 +261,12 @@ def invoice():
             unit_price = request.form.getlist('unit_price')
             less_price = request.form.getlist('less_price')
             paid_amount = request.form.get('paid_amount')
-            print(customer_name)
-            print(agent_name)
-            print(customer_id)
 
-            adhat = float(request.form.get('adhat'))
-            taulai = float(request.form.get('taulai'))
-            majdoori = float(request.form.get('majdoori'))
-            packing = float(request.form.get('packing'))
-            other = float(request.form.get('other'))
+            packaging = float(request.form.get('packaging'))
+            transport = float(request.form.get('transport'))
+            mandi = float(request.form.get('mandi'))
+            others = float(request.form.get('others'))
+            comment = request.form.get('comment')
             sub_total_amount = 0
             total_charges = 0
             calculated_weights=[]
@@ -233,10 +275,10 @@ def invoice():
                 calculated_weights.append(calculate(weight))
                 net_weights.append(calculate(weight)-float(lp))
                 sub_total_amount += (calculate(weight)-float(lp))*float(up)
-            total_charges += adhat + taulai + majdoori + packing + other
+            total_charges += packaging + transport + mandi + others
             total_amount = total_charges + sub_total_amount
             transaction_allowed = customer_name not in EMPTY_SYMBOLS and total_amount not in EMPTY_SYMBOLS
-            for weight,product in zip(calculated_weights,product_name):
+            for weight,product in zip(net_weights,product_name):
                 product_quantity=conn.execute("SELECT prod_qty FROM products where prod_name = ?",
                                  (product,)).fetchall() 
                 transaction_allowed = weight<product_quantity[0][0]
@@ -244,12 +286,12 @@ def invoice():
                         conn.execute("UPDATE products SET prod_qty = ? WHERE prod_name = ?",(product_quantity[0][0]-weight, product,))
             if transaction_allowed:
                 conn.execute(
-                    "INSERT INTO invoices (customer_id, total_amount, paid_amount) VALUES (?, ?, ?)",
-                    (customer_id, total_amount, paid_amount),
+                    "INSERT INTO invoices (invoice_id, customer_id, total_amount, paid_amount) VALUES (?, ?, ?, ?)",
+                    (invoice_id, customer_id, total_amount, paid_amount),
                 )
                 return generate_bill(invoice_id, customer_name, agent_name, product_name, 
                                      weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount,
-                                     adhat, taulai, majdoori, packing, other, total_charges, total_amount)
+                                      packaging, transport, mandi, others, total_charges, total_amount, comment)
             return "Bill not generated"
     return render_template(
         "invoice.jinja",
@@ -303,22 +345,13 @@ def edit():
     with sqlite3.connect(DATABASE_NAME) as conn:
         match edit_record_type:
             case "product":
-                prod_id, prod_name, prod_qty = (
+                prod_id, prod_qty = (
                     request.form["prod_id"],
-                    request.form["prod_name"],
                     request.form["prod_qty"],
                 )
-
-                if prod_name:
-                    conn.execute(
-                        "UPDATE products SET prod_name = ? WHERE prod_id = ?",
-                        (prod_name, prod_id),
-                    )
                 if prod_qty:
-                    product_quantity=conn.execute("SELECT prod_qty FROM products where prod_id = ?",
-                                 (prod_id)).fetchall();     
-                    if(int(prod_qty)>product_quantity[0][0]):
-                        conn.execute("UPDATE products SET prod_qty = ? WHERE prod_id = ?",
+                    if(int(prod_qty)>0):
+                        conn.execute("UPDATE products SET prod_qty = prod_qty + ? WHERE prod_id = ?",
                         (prod_qty, prod_id),
 )
                 return redirect(VIEWS["Stock"])
@@ -334,17 +367,23 @@ def record():
                     request.form["discount"],
                     request.form["amount"],
                 )
-    print(agent_name)
-    record_payment(customer_name, agent_name, discount)
-    record_payment(customer_name, agent_name, amount)
-    return redirect(VIEWS["Customer"])
-
-def record_payment(customer_name, agent_name, amount):
-    # Create a connection to the SQLite database
+    print(discount)
+    print(amount)
+    payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with sqlite3.connect(DATABASE_NAME) as conn:
         customer_id = get_customer_id(conn,customer_name,agent_name)
+        conn.execute("INSERT INTO payments ( customer_id, payment_amount, payment_time) VALUES ( ?, ?, ?)",
+                        (customer_id, float(discount)+float(amount), payment_time))
+    record_payment(customer_id, discount)
+    record_payment(customer_id, amount)
+    return redirect(VIEWS["Customer"])
+
+def record_payment(customer_id, amount):
+    # Create a connection to the SQLite database
+    with sqlite3.connect(DATABASE_NAME) as conn:
+        
         cursor = conn.cursor()
-            # Retrieve the latest bill for the customer
+        # Retrieve the latest bill for the customer
         cursor.execute("""
                 SELECT invoice_id, total_amount, paid_amount
                 FROM invoices
@@ -366,19 +405,14 @@ def record_payment(customer_name, agent_name, amount):
                     WHERE invoice_id = ?
                 """, (paid_amount + int(amount), invoice_id))
 
-                payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                cursor.execute("INSERT INTO payments ( customer_id, payment_amount, payment_time) VALUES ( ?, ?, ?)",
-                        (customer_id, amount, payment_time))
-
                 # Deduct the remaining amount from the next bill(s)
                 amount = int(amount) - max(0, -remaining_balance)
         conn.commit()
-    print(f"Payment recorded for customer {customer_name}.")
     cursor.close()
     conn.close()
 
 def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount, 
-                  adhat, taulai, majdoori, packing, other, total_charges, total_amount):
+                  packaging, transport, mandi, others, total_charges, total_amount, comment):
     invoice_data = {
         'invoice_number': invoice_id,
         'date': date.today().strftime('%d-%m-%Y'),
@@ -386,13 +420,13 @@ def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_st
         'agent_name': agent_name,
         'address': customer_name.split(',',1)[1] if len(customer_name.split(',',1))>1 else "",
         'sub_total': sub_total_amount,
-        'adhat': adhat,
-        'taulai' : taulai,
-        'majdoori': majdoori,
-        'packing' : packing,
-        'other' : other,
+        'packaging': packaging,
+        'transport' : transport,
+        'mandi': mandi,
+        'other' : others,
         'total_charges' : total_charges,
-        'total' : total_amount
+        'total' : total_amount,
+        'comment' :comment
     }
 
     invoice_items = []
@@ -400,7 +434,7 @@ def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_st
         invoice_item = {
             "Product" : product,
             "Quantity_Str" : "  "+wt_s,
-            "Quantity" : wt_s.split('*')[0],
+            "Quantity" : wt_s.split('*')[0] if '*' in wt_s else sum(1 for num in wt_s.split('+') if num.strip()),
             "Gross_Wt" : float(wt_c),
             "Net_Wt" : wt_n,
             "Less_Wt" : lp,
