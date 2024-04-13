@@ -21,10 +21,8 @@
             <tbody>
                 <tr>
                 <form action = "{{ url_for('invoice') }}" id="invoice" method = "POST">
-
-<div class="container">
 	<div class="row">
-	        <label>Customer name:</label>
+	        <label><b>Customer name:</b></label>
 	        <select class="form-control select2" form="invoice" name="customer_name" required>
                {% for customer in customers %}
                 <option>{{ customer[1]+ " (" + customer[2] + ")" }}</option>
@@ -32,22 +30,22 @@
 	        </select>
  	</div>
 </div>
-<scriptç
+<script>
     $('.select2').select2();
 </script>
-                    <br><label for="invoice-items">Product Details:</label><br>
+                    <br><label for="invoice-items"><b>Product Details:</b></label><br>
                     <table name="invoice-items" id="invoice-items">
                     </table>
                     <button class="btn btn-info" type="button" id="addProduct">Add Product</button>
-                    <br><label for="paid_amount">Amount Paid:</label><br>
-                    <tr><input type="number" form="invoice" step="0.01" name = "paid_amount" placeholder="Amount Paid" value=0 required><br></tr>
-                    <br><label for="adhat">Additional Charges:</label><br>
+                    <br><label for="adjusted_amount"><b>Amount Paid:</b></label><br>
+                    <tr><input type="number" form="invoice" step="0.01" name = "adjusted_amount" placeholder="Amount Paid" value=0 required><br></tr>
+                    <br><label for="additional_changes"><b>Additional Charges:</b></label><br>
                     Packaging: <tr><input type="number" form="invoice" step="0.01" name = "packaging" placeholder="Packaging" value=0 required></tr>
                     Transport: <tr><input type="number" form="invoice" step="0.01" name = "transport" placeholder="Transport" value=0 required></tr>
                     Mandi: <tr><input type="number" form="invoice" step="0.01" name = "mandi" placeholder="Mandi" value=0 required></tr>
                     Others: <tr><input type="number" form="invoice" step="0.01" name = "others" placeholder="Others" value=0 required></tr>
                     <br><br>
-                    Additional Comments: <br><tr><input type="text" style="width:100%" form="invoice" name = "comment" placeholder="Comment"></tr>
+                    <b>Additional Comments:</b> <br><tr><input type="text" style="width:100%" form="invoice" name = "comment" placeholder="Comment"></tr>
                     <br><br><input type= "Submit" class="btn btn-info btn-group-toggle" value= "Submit" /><br>
                 </form>
             </tr>
@@ -66,13 +64,26 @@
             const cell3 = row.insertCell(3);
             const cell4 = row.insertCell(4);
             const cell5 = row.insertCell(5);
-            
-            cell0.innerHTML += '<span class="container"><span class="row"><select form="invoice" name="product_name" class="form-control select2" required>{% for product in products %}<option>{{ product[1]}}</option>{% endfor %}</select></span>';
-            //cell1.innerHTML += '<input class="container" type="text" list="dropdown" form="invoice" name="product_name" placeholder="Search for an item" oninput=searchProduct(this)>';
-            cell2.innerHTML += '<input type="text" form="invoice" name="weight_str" placeholder="Weight(1*24 or 3.5+2.8)" required>';
-            cell3.innerHTML += '<input type="number" form="invoice" step="0.01" name="unit_price" placeholder="Rate" required>';
-            cell4.innerHTML += '<input type="number" form="invoice" step="0.01" name="less_price" placeholder="Less Weight" value=0 required>';
-            cell5.innerHTML += '<button class="btn btn-info" type="button" form="invoice" onclick="removeProduct(this)">Remove Product</button><br>';
+
+            // Cell 0
+            var cell0Content = '<span class="container"><select form="invoice" name="product_name" class="form-control select2" required>{% for product in products %}<option>{{ product[1]}}</option>{% endfor %}</select></span>';
+            cell0.innerHTML = cell0Content;
+
+            // Cell 2
+            var cell2Content = 'Weight : <input type="text" form="invoice" name="weight_str" placeholder="Weight(1*24 or 3.5+2.8)" required>';
+            cell2.innerHTML = cell2Content;
+
+            // Cell 3
+            var cell3Content = 'Rate : <input type="number" form="invoice" step="0.01" name="unit_price" placeholder="Rate" required>';
+            cell3.innerHTML = cell3Content;
+
+            // Cell 4
+            var cell4Content = 'Less Weight : <input type="number" form="invoice" step="0.01" name="less_price" placeholder="Less Weight" value=0 required>';
+            cell4.innerHTML = cell4Content;
+
+            // Cell 5
+            var cell5Content = '<button class="btn btn-info" type="button" form="invoice" onclick="removeProduct(this)">Remove Product</button><br>';
+            cell5.innerHTML = cell5Content;
 
         });
 

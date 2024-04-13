@@ -10,15 +10,15 @@
             {% for product in products %}
                 <tr>
                     <td>{{ product[1] }}</td><td>{{ product[2] }}</td>
-                    <td>
+                    <!--<td>
                         <a href="{{ url_for('delete', prod_id=product[0], type='product') }}">
                             <button name="button" type="button" class="btn btn-danger" value= "delete" >delete</button><br>
                         </a>
-                    </td>
+                    </td>-->
                     <td>
-                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ product[0] }}" >edit</button><br>
+                        <button name="button" type="button" class="btn btn-success" value= "edit" data-toggle="modal" data-target="#edit_{{ product[0] }}" >Add quantity</button><br>
                         <div id="edit_{{ product[0] }}" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="trans_message" aria-hidden="true">
-                            <form action="{{ url_for('edit', type='product') }}" method="post" class="base_form">
+                           <form action="{{ url_for('edit', type='product') }}" method="post" class="base_form">
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content">
                                     <div class="modal-body">
@@ -42,8 +42,8 @@
                                     <div class="modal-footer">
                                         <input name="prod_id" value="{{ product[0] }}" hidden aria-hidden="true">
                                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-                                            <button type="submit" class="btn btn-primary">Save changes</button>
-                                    </div>
+                                        <button type="submit" class="btn btn-primary">Save changes</button>
+                                    </div> 
                                 </div>
                             </div>
                             </form>
@@ -55,8 +55,8 @@
             <tr>
                 <form action = "{{ url_for('product') }}" method = "POST">
                     <td><input name = "prod_name" placeholder="Product Name" required autofocus></td>
-                    <td><input name = "prod_qty" placeholder="Quantity" required></td>
-                    <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "submit" /><br></td>
+                    <td><input type="number" name = "prod_qty" placeholder="Quantity" required></td>
+                    <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "Submit" /><br></td>
                 </form>
             </tr>
         </tbody>

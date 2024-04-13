@@ -3,15 +3,16 @@
     <div class="container">
     <h3 align="center">Invoice Summary</h3>
         <div style="height: 50%;width: 100%; float: left">
-        <form id="searchForm" action = "{{ url_for('invoice_history') }}" method = "POST">
-        <label for="date">Date:</label>
-        <input type="date" name="date">
-        <label for="customer">Customer Details:</label>
-        <input name="customer">
-        <label for="agent">Agent Name:</label>
-        <input name="agent">
-        <td><input type= "submit" class="btn btn-info btn-group-toggle" value= "submit" /><br></td>
+        <form id="searchForm" action="{{ url_for('invoice_history') }}" method="POST">
+                <label for="date"><b>Date:</b> </label>
+                <input type="date" name="date">
+                <label for="customer"><b>Customer Details:</b></label>
+                <input name="customer">
+                <label for="agent"><b>Agent Name:</b></label>
+                <input name="agent">
+                <input type="submit" class="btn btn-info btn-group-toggle" value="Submit">
         </form>
+
         {% if not invoices %}
         <div style="float: left;width:50%;">
             <h3 align="center" class="font-weight-light">No Invoice Data Available</h3>

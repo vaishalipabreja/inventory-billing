@@ -25,15 +25,18 @@
     .dotted tr:nth-child(even) {
       border: 2px dashed #000; /* Dashed border for odd rows */
     }
+    h1 {
+    text-align: center;
+    }
 </style>
 <body>
     <h1>Invoice</h1>
     <table>
-        <p>Invoice Number: {{ invoice_data.invoice_number }}</p>
-        <p>Date: {{ invoice_data.date }}</p>
-        <p>Customer: {{ invoice_data.customer_name }}</p>
-        <p>Address: {{ invoice_data.address }}</p>
-        <p>Agent: {{ invoice_data.agent_name }}</p>
+        <p><b>Invoice Number:</b> {{ invoice_data.invoice_number }}</p>
+        <p><b>Date:</b> {{ invoice_data.date }}</p>
+        <p><b>Customer:</b> {{ invoice_data.customer_name }}</p>
+        <p><b>Address:</b> {{ invoice_data.address }}</p>
+        <p><b>Agent:</b> {{ invoice_data.agent_name }}</p>
     </table>
     <table>
         <thead>
