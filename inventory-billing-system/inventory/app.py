@@ -445,10 +445,10 @@ def record_payment(customer_id, amount):
                     UPDATE invoices
                     SET paid_amount = ?
                     WHERE invoice_id = ?
-                """, (paid_amount + int(paid_bill), invoice_id))
+                """, (paid_amount + float(paid_bill), invoice_id))
 
                 # Deduct the remaining amount from the next bill(s)
-                amount = int(amount) - paid_bill
+                amount = float(amount) - paid_bill
         if amount > 0:
             cursor.execute("""
             UPDATE customers
