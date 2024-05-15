@@ -276,7 +276,7 @@ def invoice():
             net_weights=[]
             for weight, up, lp in zip(weight_str, unit_price, less_price):
                 calculated_weights.append(calculate(weight))
-                net_weights.append(calculate(weight)-float(lp))
+                net_weights.append(round(calculate(weight)-float(lp),2))
                 sub_total_amount += round((calculate(weight)-float(lp))*float(up), 2)
             total_charges += packaging + transport + mandi + others
             total_amount = total_charges + sub_total_amount
@@ -291,13 +291,13 @@ def invoice():
             extra_payment = cursor.fetchone()[0] or 0
             extra_payment += adjusted_amount
             paid_amount = 0
-
+            print(extra_payment)
             # Adjust total amount due and mark extra payment in table accordingly
             if extra_payment >= total_amount:
                 paid_amount = total_amount
-                extra_payment = extra_payment - paid_amount
-            elif extra_payment > 0:
-                paid_amount = total_amount - extra_payment
+                extra_payment -= total_amount
+            else:
+                paid_amount = extra_payment
                 extra_payment = 0
 
             cursor.execute("""
