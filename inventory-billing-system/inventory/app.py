@@ -40,8 +40,8 @@ def init_database():
         "invoices("
         "invoice_id TEXT PRIMARY KEY, "
         "customer_id TEXT NOT NULL, "
-        "total_amount INTEGER NOT NULL, "
-        "paid_amount INTEGER NOT NULL, "
+        "total_amount REAL NOT NULL, "
+        "paid_amount REAL NOT NULL, "
         "invoice_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
         "FOREIGN KEY(customer_id) REFERENCES customer(customer_id)) "
     )
@@ -53,17 +53,29 @@ def init_database():
         "extra_payment_amount INTEGER NOT NULL, "
         "UNIQUE(customer_name, agent_name))"
     )
+
+    INVOICE_ITEMS = (
+        "invoice_items("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "invoice_id TEXT NOT NULL, "
+        "prod_id INTEGER NOT NULL, "
+        "qty INTEGER NOT NULL, "
+        "FOREIGN KEY(invoice_id) REFERENCES invoices(invoice_id), "
+        "FOREIGN KEY(prod_id) REFERENCES products(prod_id))"
+    )
+
     PAYMENTS = (
         "payments("
         "payment_id INTEGER PRIMARY KEY AUTOINCREMENT, "
         "customer_id TEXT NOT NULL, "
         "payment_amount INTEGER NOT NULL, "
+        "discount_amount REAL NOT NULL DEFAULT 0,"
         "payment_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
         "FOREIGN KEY(customer_id) REFERENCES customers(customer_id)) "
     )
 
     with sqlite3.connect(DATABASE_NAME) as conn:
-        for table_definition in [PRODUCTS, INVOICES, CUSTOMERS, PAYMENTS]:
+        for table_definition in [PRODUCTS, INVOICES, CUSTOMERS, INVOICE_ITEMS, PAYMENTS]:
             conn.execute(f"CREATE TABLE IF NOT EXISTS {table_definition}")
 
 
@@ -132,7 +144,7 @@ def customer_details():
     if customer_id:
         # Fetch invoices and payments for the customer
         invoices_query = "SELECT invoice_id, total_amount, paid_amount, invoice_time FROM invoices WHERE customer_id=?"
-        payments_query = "SELECT payment_id, payment_amount, payment_time FROM payments WHERE customer_id=?"
+        payments_query = "SELECT payment_id, payment_amount, discount_amount, payment_time FROM payments WHERE customer_id=?"
 
         invoices = conn.execute(invoices_query, (customer_id,)).fetchall()
         payments = conn.execute(payments_query, (customer_id,)).fetchall()
@@ -146,40 +158,59 @@ def customer_details():
         }
 
         # Render your customer details template with the provided customer details
-        return render_template('customer_details.jinja', customer_details=customer_details)
+        return render_template(
+    "customer_details.jinja",
+    customer_details=customer_details,
+    link=VIEWS,
+    title="Customer Details",
+    current_date=date.today().isoformat())
     else:
         # Render the 'customer_not_found' template or handle accordingly
-        return render_template('customer_not_found.html')
+        return render_template(
+    "customer_not_found.html",
+    link=VIEWS,
+    title="Customer Not Found"
+)
+
     
 
 @app.route("/invoice_history", methods=["POST","GET"])
 def invoice_history():
     conn = sqlite3.connect(DATABASE_NAME)
     if request.method == "POST":
-        date = request.form["date"]
-        customer = request.form["customer"]
-        agent = request.form["agent"]
+        date = request.form.get("date", "")
+        customer = request.form.get("customer", "")
+        agent = request.form.get("agent", "")
         conditions = []
+        params = []
+
         if date:
-            date_object = datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            conditions.append(f"DATE(invoice_time) = '{date_object}'")
+            conditions.append("DATE(invoice_time) = ?")
+            params.append(date)
         if customer:
-            conditions.append(f"customer_name LIKE '%{customer}%'")
+            conditions.append("customers.customer_name LIKE ?")
+            params.append(f"%{customer}%")
         if agent:
-            conditions.append(f"agent_name LIKE '%{agent}%'")
-        query = """SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time, 
-        ROUND(COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) - customers.extra_payment_amount,2) AS total_amount FROM invoices LEFT JOIN customers ON customers.customer_id = invoices.customer_id"""
+            conditions.append("customers.agent_name LIKE ?")
+            params.append(f"%{agent}%")
+
+        query = """SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
+                          invoices.total_amount, invoices.paid_amount
+                   FROM invoices
+                   LEFT JOIN customers ON customers.customer_id = invoices.customer_id"""
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query+= " GROUP BY customers.customer_name, customers.agent_name ORDER BY invoice_time DESC"
-        invoices = conn.execute(query).fetchall()
-    else:
-        invoices = conn.execute("""SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
-        ROUND(COALESCE(SUM(invoices.total_amount - invoices.paid_amount), 0) - customers.extra_payment_amount,2) AS total_amount FROM invoices
-        LEFT JOIN customers ON customers.customer_id = invoices.customer_id
-        GROUP BY customers.customer_name, customers.agent_name
-        ORDER BY invoice_time DESC""").fetchall()
+        query += " ORDER BY invoices.invoice_time DESC"
 
+        invoices = conn.execute(query, params).fetchall()
+    else:
+        invoices = conn.execute("""
+            SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
+                   invoices.total_amount, invoices.paid_amount
+            FROM invoices
+            LEFT JOIN customers ON customers.customer_id = invoices.customer_id
+            ORDER BY invoices.invoice_time DESC
+        """).fetchall()
 
     return render_template(
         "invoice_history.jinja",
@@ -187,6 +218,7 @@ def invoice_history():
         title="Invoice History",
         invoices=invoices
     )
+
 
 
 @app.route("/product", methods=["POST", "GET"])
@@ -318,6 +350,15 @@ def invoice():
                     "INSERT INTO invoices (invoice_id, customer_id, total_amount, paid_amount) VALUES (?, ?, ?, ?)",
                     (invoice_id, customer_id, total_amount, paid_amount),
                 )
+
+                 # Insert invoice items for stock tracking
+                for product, weight in zip(product_name, net_weights):
+                    conn.execute(
+                    "INSERT INTO invoice_items (invoice_id, prod_id, qty) "
+                    "VALUES (?, (SELECT prod_id FROM products WHERE prod_name = ?), ?)",
+                    (invoice_id, product, weight)
+                    )
+
                 return generate_bill(invoice_id, customer_name, agent_name, product_name, 
                                      weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount,
                                       packaging, transport, mandi, others, total_charges, total_amount, comment, extra_payment)
@@ -398,66 +439,82 @@ def edit():
 
             case _:
                 return redirect(VIEWS["Summary"])
-            
+
 @app.route("/record", methods=["POST"])
 def record():
-    customer_name, agent_name, discount, amount = (
-                    request.form["customer_name"],
-                    request.form["agent_name"],
-                    request.form["discount"],
-                    request.form["amount"],
-                )
-    payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    customer_name = request.form["customer_name"]
+    agent_name = request.form["agent_name"]
+    discount = float(request.form.get("discount", 0))
+    amount = float(request.form.get("amount", 0))
+    
+    # Total applied to invoices
+    effective_payment = amount + discount
+
+    # Use submitted payment date if provided, else default to now
+    payment_date = request.form.get("payment_date")
+    if payment_date:
+        # Set time to current time (optional, can also store 00:00:00 if you prefer)
+        payment_time = f"{payment_date} {datetime.now().strftime('%H:%M:%S')}"
+    else:
+        payment_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     with sqlite3.connect(DATABASE_NAME) as conn:
-        customer_id = get_customer_id(conn,customer_name,agent_name)
-        conn.execute("INSERT INTO payments ( customer_id, payment_amount, payment_time) VALUES ( ?, ?, ?)",
-                        (customer_id, float(discount)+float(amount), payment_time))
-    record_payment(customer_id, discount)
-    record_payment(customer_id, amount)
+        conn.row_factory = sqlite3.Row
+        customer_id = get_customer_id(conn, customer_name, agent_name)
+
+        # 1️⃣ Save the payment record
+        conn.execute(
+            "INSERT INTO payments (customer_id, payment_amount, discount_amount, payment_time) VALUES (?, ?, ?, ?)",
+            (customer_id, amount, discount, payment_time)
+        )
+
+        # 2️⃣ Apply to invoices FIFO as paid_amount
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT invoice_id, total_amount, paid_amount
+            FROM invoices
+            WHERE customer_id = ?
+            ORDER BY invoice_time ASC
+        """, (customer_id,))
+        bills = cursor.fetchall()
+
+        remaining = effective_payment
+
+        for invoice_id, total_amount, paid_amount in bills:
+            if remaining == 0:
+                break
+
+            balance = total_amount - paid_amount
+            if balance <= 0:
+                continue
+
+            # how much to apply
+            applied = min(balance, abs(remaining))
+
+            # update invoice paid_amount
+            cursor.execute("""
+                UPDATE invoices
+                SET paid_amount = paid_amount + ?
+                WHERE invoice_id = ?
+            """, (applied, invoice_id))
+
+            if remaining > 0:
+                remaining -= applied
+            else:
+                remaining += applied
+
+        # leftover becomes extra_payment_amount
+        if remaining != 0:
+            cursor.execute("""
+                UPDATE customers
+                SET extra_payment_amount = extra_payment_amount + ?
+                WHERE customer_id = ?
+            """, (remaining, customer_id))
+
+        conn.commit()
+
     return redirect(VIEWS["Customer"])
 
-def record_payment(customer_id, amount):
-    # Create a connection to the SQLite database
-    with sqlite3.connect(DATABASE_NAME) as conn:
-        
-        cursor = conn.cursor()
-        amount = int(amount)
-        # Retrieve the latest bill for the customer
-        cursor.execute("""
-                SELECT invoice_id, total_amount, paid_amount
-                FROM invoices
-                WHERE customer_id = ?
-                ORDER BY invoice_time ASC
-            """, (customer_id,))
-        bills = cursor.fetchall()
-        for i, bill in enumerate(bills):
-                invoice_id, total_amount, paid_amount = bill
-                # Deduct the amount from the remaining balance
-                remaining_amount = total_amount - paid_amount
-                if remaining_amount <= 0:
-                    continue;
-                if( remaining_amount >= amount):
-                    paid_bill = amount
-                else:
-                    paid_bill = remaining_amount
-                # Update the invoice record with the new paid amount and remaining balance
-                cursor.execute("""
-                    UPDATE invoices
-                    SET paid_amount = ?
-                    WHERE invoice_id = ?
-                """, (paid_amount + float(paid_bill), invoice_id))
-
-                # Deduct the remaining amount from the next bill(s)
-                amount = float(amount) - paid_bill
-        if amount > 0:
-            cursor.execute("""
-            UPDATE customers
-            SET extra_payment_amount = extra_payment_amount + ?
-            WHERE customer_id = ?
-            """, (amount, customer_id))
-        conn.commit()
-    cursor.close()
-    conn.close()
 
 def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount, 
                   packaging, transport, mandi, others, total_charges, total_amount, comment, paid_amount):
@@ -522,5 +579,58 @@ def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_st
     response.headers['Content-Disposition'] = 'attachment; filename='+file_name
 
     return response
+
+@app.route("/invoice/delete/<invoice_id>", methods=["POST"])
+def delete_invoice(invoice_id):
+    with sqlite3.connect(DATABASE_NAME) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Fetch the invoice to get its customer and paid amount
+        invoice = cursor.execute(
+            "SELECT customer_id, paid_amount FROM invoices WHERE invoice_id = ?",
+            (invoice_id,)
+        ).fetchone()
+
+        if not invoice:
+            return "Invoice not found", 404
+
+        customer_id = invoice["customer_id"]
+        paid_amount = invoice["paid_amount"]
+        
+        # Fetch all products from this invoice
+        invoice_items = cursor.execute(
+            "SELECT prod_id, qty FROM invoice_items WHERE invoice_id = ?",
+            (invoice_id,)
+        ).fetchall()
+
+        # Add the quantities back to the stock
+        for item in invoice_items:
+            cursor.execute("""
+                UPDATE products
+                SET prod_qty = prod_qty + ?
+                WHERE prod_id = ?
+            """, (item["qty"], item["prod_id"]))
+
+
+        # Delete the invoice
+        cursor.execute(
+            "DELETE FROM invoices WHERE invoice_id = ?",
+            (invoice_id,)
+        )
+
+        # Adjust extra_payment_amount if needed
+        if paid_amount > 0:
+            cursor.execute("""
+                UPDATE customers
+                SET extra_payment_amount = extra_payment_amount + ?
+                WHERE customer_id = ?
+            """, (paid_amount, customer_id))
+
+        conn.commit()
+
+    return redirect(VIEWS["Invoice History"])
+
+
 with app.app_context():
     app.init_db()

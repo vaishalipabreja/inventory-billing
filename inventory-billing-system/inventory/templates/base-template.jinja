@@ -1,67 +1,71 @@
 <!doctype html>
-<html>
-    <head>
-        <meta charset="utf-8"/>
-        <title>{{ title }} - Inventory Management</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css') }}">
-        <link rel="icon" href="{{ url_for('static', filename='site_icon.png') }}" class="js-favicon">
-        <!--div>Icons made by <a href="http://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div-->
-        <script src="{{ url_for('static', filename='jquery-3.3.1.slim.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='bootstrap.min.js') }}"></script>
-        <style lang="css">
-            .slide-container { width: 100%; }
-            .slider {
-                -webkit-appearance: none;
-                width: 100%;
-                height: 10px;
-                border-radius: 5px;
-                background: #d3d3d3;
-                outline: none;
-                opacity: 0.7;
-                -webkit-transition: .2s;
-                transition: opacity .2s;
-            }
-            .slider:hover { opacity: 1; }
-            .slider::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 23px;
-                height: 24px;
-                border: 0;
-                background: url({{ url_for('static', filename='range_icon.png') }});
-                cursor: pointer;
-            }
-            .slider::-moz-range-thumb {
-                width: 23px;
-                height: 24px;
-                border: 0;
-                background: url({{ url_for('static', filename='range_icon.png') }});
-                cursor: pointer;
-            }
-            .container { padding-top: 70px; }
-            .record-payment-button-container {
-                position: fixed;
-                top: 100px; /* Adjust the top position as needed */
-                right: 100px; /* Adjust the right position as needed */
-                z-index: 1000; /* Make sure it's on top of other elements */
-                }
-        </style>
-    </head>
-    <body>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark" style="position: fixed;width: 100%;z-index: 2;">
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav mr-auto bg-dark alert-light">{{ title }}</ul>
-                {% for k, v in link|items %}
-                <div class="col-auto">
-                  <button class="btn btn-primary" onclick="location.href='{{ v }}'" {{ 'disabled' if k == title }}>{{ k }}</button>
-                </div>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>{{ title }} - Inventory Management</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="icon" href="{{ url_for('static', filename='site_icon.png') }}">
+
+    <style>
+        .container { padding-top: 90px; }
+
+        .record-payment-button-container {
+            position: fixed;
+            top: 100px;
+            right: 40px;
+            z-index: 1050;
+        }
+
+        .navbar-brand-title {
+            color: white;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+
+        <span class="navbar-brand navbar-brand-title">
+            {{ title }}
+        </span>
+
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <div class="ms-auto d-flex gap-2">
+                {% for k, v in link.items() %}
+                    <a href="{{ v }}"
+                       class="btn btn-primary {% if k == title %}disabled{% endif %}">
+                        {{ k }}
+                    </a>
                 {% endfor %}
             </div>
-	    </nav>
-        {% block content %}
-        {% endblock %}
-    </body>
+        </div>
+
+    </div>
+</nav>
+
+<!-- PAGE CONTENT -->
+{% block content %}
+{% endblock %}
+
+<!-- Bootstrap 5 JS (REQUIRED FOR MODALS) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
 </html>
