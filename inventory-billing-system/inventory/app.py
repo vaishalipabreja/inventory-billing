@@ -103,30 +103,111 @@ def get_customer_id(conn, customer_name, agent_name):
 
 def generate_unique_bill_number():
     conn = sqlite3.connect(DATABASE_NAME)
-    last_bill = conn.execute('SELECT * FROM invoices ORDER BY invoice_time DESC LIMIT 1').fetchone()
-    if last_bill:
-        # Increment the last bill number to generate the new bill number
-        last_number = int(last_bill[0].split('-')[0])
-        new_number = last_number + 1
-    else:
-        # If there are no existing bills, start with 1
-        new_number = 1
+    cursor = conn.cursor()
 
-    # Use the new bill number for the current transaction
-    return f"{new_number}-{datetime.utcnow().strftime('%Y')}" 
+    year = datetime.utcnow().strftime('%Y')
 
-def calculate(expression):
-    try:
-        # Check if the expression contains only allowed characters
-        allowed_chars = set('0123456789.+-* ')
-        if not set(expression).issubset(allowed_chars):
-            raise ValueError("Invalid characters in the expression")
+    cursor.execute("""
+        SELECT MAX(CAST(SUBSTR(invoice_id, 1, INSTR(invoice_id, '-') - 1) AS INTEGER))
+        FROM invoices
+        WHERE invoice_id LIKE ?
+    """, (f"%-{year}",))
 
-        # Evaluate the expression
-        result = eval(expression)
-        return result
-    except Exception as e:
-        return f"Error: {e}"
+    last_number = cursor.fetchone()[0]
+
+    new_number = (last_number or 0) + 1
+
+    return f"{new_number}-{year}"
+
+def calculate_qty(expr: str) -> int:
+    qty = 0
+    parts = expr.split("+")
+
+    for part in parts:
+        if "*" in part:
+            first, _ = part.split("*", 1)
+            qty += int(float(first))
+        else:
+            qty += 1
+
+    return qty
+
+def calculate_row(expr, unit_price, less_weight):
+    """
+    Calculate quantity, weights, stock deduction, and amount for different formats:
+    - normal number or arithmetic (e.g., 5*2, 1+2)
+    - '65/4' → gross weight 65 for 4 bags
+    - '7x9' → 7 bags, 9 weight per bag, amount = rate * qty
+    """
+    expr = expr.replace(" ", "").lower()  # clean input
+
+    less_weight = float(less_weight or 0)
+    unit_price = float(unit_price or 0)
+
+    # Case 1: "65/4"
+    if "/" in expr:
+        gross, qty = expr.split("/")
+        gross = float(gross)
+        qty = int(qty)
+        net_weight = gross - less_weight
+        amount = round(net_weight * unit_price, 2)
+
+        return {
+            "qty": qty,
+            "gross_weight": gross,
+            "net_weight": net_weight,
+            "stock_deduct": net_weight,
+            "amount": amount
+        }
+
+    # Case 2: "7x9"
+    if "x" in expr:
+        qty, per_bag = expr.split("x")
+        qty = int(qty)
+        per_bag = float(per_bag)
+        gross = qty * per_bag
+        net_weight = round(gross - less_weight,2)
+        amount = round(qty * unit_price, 2)  # amount = rate * qty
+
+        return {
+            "qty": qty,
+            "gross_weight": gross,
+            "net_weight": net_weight,
+            "stock_deduct": net_weight,
+            "amount": amount
+        }
+
+    # Case 3: normal arithmetic (1*4, 5+7.8)
+    value = safe_math(expr)
+    qty = calculate_qty(expr)
+    net_weight = round(value - less_weight,2)
+    amount = round(net_weight * unit_price, 2)
+    print(net_weight)
+
+    return {
+        "qty": qty,
+        "gross_weight": value,
+        "net_weight": net_weight,
+        "stock_deduct": net_weight,
+        "amount": amount
+    }
+
+import ast, operator
+
+OPS = {
+    ast.Add: operator.add,
+    ast.Mult: operator.mul,
+}
+
+def safe_math(expr):
+    def _eval(node):
+        if isinstance(node, ast.Num):
+            return node.n
+        if isinstance(node, ast.BinOp):
+            return OPS[type(node.op)](_eval(node.left), _eval(node.right))
+        raise ValueError("Invalid expression")
+
+    return _eval(ast.parse(expr, mode="eval").body)
 
 @app.route("/", methods=["GET"])
 def main_page():
@@ -173,19 +254,20 @@ def customer_details():
 )
 
     
-
-@app.route("/invoice_history", methods=["POST","GET"])
+@app.route("/invoice_history", methods=["POST", "GET"])
 def invoice_history():
     conn = sqlite3.connect(DATABASE_NAME)
+
+    conditions = ["invoices.total_amount != invoices.paid_amount"]
+    params = []
+
     if request.method == "POST":
         date = request.form.get("date", "")
         customer = request.form.get("customer", "")
         agent = request.form.get("agent", "")
-        conditions = []
-        params = []
 
         if date:
-            conditions.append("DATE(invoice_time) = ?")
+            conditions.append("DATE(invoices.invoice_time) = ?")
             params.append(date)
         if customer:
             conditions.append("customers.customer_name LIKE ?")
@@ -194,23 +276,24 @@ def invoice_history():
             conditions.append("customers.agent_name LIKE ?")
             params.append(f"%{agent}%")
 
-        query = """SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
-                          invoices.total_amount, invoices.paid_amount
-                   FROM invoices
-                   LEFT JOIN customers ON customers.customer_id = invoices.customer_id"""
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY invoices.invoice_time DESC"
+    query = """
+        SELECT
+            invoices.invoice_id,
+            customers.customer_name,
+            customers.agent_name,
+            invoices.total_amount,
+            invoices.paid_amount
+        FROM invoices
+        LEFT JOIN customers
+            ON customers.customer_id = invoices.customer_id
+    """
 
-        invoices = conn.execute(query, params).fetchall()
-    else:
-        invoices = conn.execute("""
-            SELECT invoices.invoice_id, customers.customer_name, customers.agent_name, invoices.invoice_time,
-                   invoices.total_amount, invoices.paid_amount
-            FROM invoices
-            LEFT JOIN customers ON customers.customer_id = invoices.customer_id
-            ORDER BY invoices.invoice_time DESC
-        """).fetchall()
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY customers.customer_name DESC"
+
+    invoices = conn.execute(query, params).fetchall()
 
     return render_template(
         "invoice_history.jinja",
@@ -221,11 +304,12 @@ def invoice_history():
 
 
 
+
 @app.route("/product", methods=["POST", "GET"])
 def product():
     with sqlite3.connect(DATABASE_NAME) as conn:
         if request.method == "POST":
-            prod_name, quantity = request.form["prod_name"], request.form["prod_qty"]
+            prod_name, quantity = request.form["prod_name"].strip(), request.form["prod_qty"].strip()
             transaction_allowed = prod_name not in EMPTY_SYMBOLS and quantity not in EMPTY_SYMBOLS
 
             if transaction_allowed:
@@ -283,48 +367,63 @@ LEFT JOIN (
 def invoice():
     with sqlite3.connect(DATABASE_NAME) as conn:
         customers = conn.execute("SELECT * FROM customers").fetchall()
-        products = conn.execute("SELECT * FROM products where prod_qty > 0").fetchall()
-    with sqlite3.connect(DATABASE_NAME) as conn:
-        if request.method == "POST":
+        products = conn.execute("SELECT * FROM products WHERE prod_qty > 0").fetchall()
+
+    if request.method == "POST":
+        with sqlite3.connect(DATABASE_NAME) as conn:
             invoice_id = generate_unique_bill_number()
+            print(invoice_id)
 
-            customer_name = request.form.get('customer_name').split("(")[0].strip()
-            agent_name = request.form.get('customer_name').split("(")[1].strip(')')
+            invoice_date = request.form.get("invoice_date")
+            customer_raw = request.form.get("customer_name")
+            transport_name = request.form.get("transportname")
+            customer_name = customer_raw.split("(")[0].strip()
+            agent_name = customer_raw.split("(")[1].strip(")")
             customer_id = get_customer_id(conn, customer_name, agent_name)
-            product_name = request.form.getlist('product_name')
-            weight_str = request.form.getlist('weight_str')
-            unit_price = request.form.getlist('unit_price')
-            less_price = request.form.getlist('less_price')
-            adjusted_amount = float(request.form.get('adjusted_amount'))
 
-            packaging = float(request.form.get('packaging'))
-            transport = float(request.form.get('transport'))
-            mandi = float(request.form.get('mandi'))
-            others = float(request.form.get('others'))
-            comment = request.form.get('comment')
+            product_name = request.form.getlist("product_name")
+            weight_str = request.form.getlist("weight_str")
+            unit_price = request.form.getlist("unit_price")
+            less_price = request.form.getlist("less_price")
+
+            adjusted_amount = float(request.form.get("adjusted_amount") or 0)
+
+            packaging = float(request.form.get("packaging") or 0)
+            transport = float(request.form.get("transport") or 0)
+            mandi = float(request.form.get("mandi") or 0)
+            others = float(request.form.get("others") or 0)
+            comment = request.form.get("comment")
+
+            calculated_weights = []
+            net_weights = []
+            stock_deductions = []
+
             sub_total_amount = 0
-            total_charges = 0
-            calculated_weights=[]
-            net_weights=[]
-            for weight, up, lp in zip(weight_str, unit_price, less_price):
-                calculated_weights.append(calculate(weight))
-                net_weights.append(round(calculate(weight)-float(lp),2))
-                sub_total_amount += round((calculate(weight)-float(lp))*float(up), 2)
-            total_charges += packaging + transport + mandi + others
-            total_amount = total_charges + sub_total_amount
+            rows = []
 
-            # Retrieve extra payments made by the customer
+            # ---- CALCULATION ----
+            for w, up, lp in zip(weight_str, unit_price, less_price):
+                row = calculate_row(w, up, lp)
+                rows.append(row)
+
+                calculated_weights.append(row["gross_weight"])
+                net_weights.append(row["net_weight"])
+                stock_deductions.append(row["stock_deduct"])
+
+                sub_total_amount += row["amount"]
+
+            total_charges = packaging + transport + mandi + others
+            total_amount = sub_total_amount + total_charges
+
+            # ---- EXTRA PAYMENT LOGIC ----
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT customers.extra_payment_amount
-                FROM customers
-                WHERE customer_id = ?
-            """, (customer_id,))
+            cursor.execute(
+                "SELECT extra_payment_amount FROM customers WHERE customer_id = ?",
+                (customer_id,)
+            )
             extra_payment = cursor.fetchone()[0] or 0
             extra_payment += adjusted_amount
-            paid_amount = 0
-            print(extra_payment)
-            # Adjust total amount due and mark extra payment in table accordingly
+
             if extra_payment >= total_amount:
                 paid_amount = total_amount
                 extra_payment -= total_amount
@@ -332,43 +431,76 @@ def invoice():
                 paid_amount = extra_payment
                 extra_payment = 0
 
-            cursor.execute("""
-            UPDATE customers
-            SET extra_payment_amount = ?
-            WHERE customer_id = ?
-        """, (extra_payment, customer_id))
+            cursor.execute(
+                "UPDATE customers SET extra_payment_amount = ? WHERE customer_id = ?",
+                (extra_payment, customer_id)
+            )
 
-            transaction_allowed = customer_name not in EMPTY_SYMBOLS and total_amount not in EMPTY_SYMBOLS
-            for weight,product in zip(net_weights,product_name):
-                product_quantity=conn.execute("SELECT prod_qty FROM products where prod_name = ?",
-                                 (product,)).fetchall() 
-                transaction_allowed = weight<=product_quantity[0][0]
-                if(weight<=product_quantity[0][0]):
-                        conn.execute("UPDATE products SET prod_qty = ? WHERE prod_name = ?",(product_quantity[0][0]-weight, product,))
-            if transaction_allowed:
+            # ---- STOCK CHECK + UPDATE ----
+            transaction_allowed = True
+
+            for deduct_qty, product in zip(stock_deductions, product_name):
+                print(products)
+                row = conn.execute(
+                    "SELECT prod_qty FROM products WHERE TRIM(prod_name) = TRIM(?)",(product,)).fetchone()
+                current_qty = row[0] if row else 0
+
+                print(current_qty)
+
+                if deduct_qty > current_qty:
+                    transaction_allowed = False
+                    break
+
                 conn.execute(
-                    "INSERT INTO invoices (invoice_id, customer_id, total_amount, paid_amount) VALUES (?, ?, ?, ?)",
-                    (invoice_id, customer_id, total_amount, paid_amount),
+                    "UPDATE products SET prod_qty = ? WHERE prod_name = ?",
+                    (current_qty - deduct_qty, product)
                 )
 
-                 # Insert invoice items for stock tracking
-                for product, weight in zip(product_name, net_weights):
-                    conn.execute(
+            if not transaction_allowed:
+                return "Bill not generated (insufficient stock)"
+
+            # ---- INSERT INVOICE ----
+            conn.execute(
+                "INSERT INTO invoices (invoice_id, customer_id, total_amount, paid_amount, invoice_time) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (invoice_id, customer_id, total_amount, paid_amount, invoice_date)
+            )
+
+            for product, deduct_qty in zip(product_name, stock_deductions):
+                conn.execute(
                     "INSERT INTO invoice_items (invoice_id, prod_id, qty) "
                     "VALUES (?, (SELECT prod_id FROM products WHERE prod_name = ?), ?)",
-                    (invoice_id, product, weight)
-                    )
+                    (invoice_id, product, deduct_qty)
+                )
 
-                return generate_bill(invoice_id, customer_name, agent_name, product_name, 
-                                     weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount,
-                                      packaging, transport, mandi, others, total_charges, total_amount, comment, extra_payment)
-            return "Bill not generated"
+            return generate_bill(
+    invoice_id,
+    customer_name,
+    agent_name,
+    product_name,
+    weight_str,
+    rows,  # list of calculate_row results
+    less_price,
+    unit_price,
+    sub_total_amount,
+    packaging,
+    transport,
+    mandi,
+    others,
+    total_charges,
+    total_amount,
+    comment,
+    extra_payment,
+    invoice_date,
+    transport_name)
+
     return render_template(
         "invoice.jinja",
         link=VIEWS,
         title="Invoice",
         customers=customers,
-        products=products
+        products=products,
+        current_date=date.today().isoformat()
     )
 
 @app.route("/delete")
@@ -418,7 +550,7 @@ def edit():
                     request.form["prod_qty"],
                 )
                 if prod_qty:
-                    if(int(prod_qty)>0):
+                    if(float(prod_qty)>0):
                         conn.execute("UPDATE products SET prod_qty = prod_qty + ? WHERE prod_id = ?",
                         (prod_qty, prod_id),
 )
@@ -516,43 +648,54 @@ def record():
     return redirect(VIEWS["Customer"])
 
 
-def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_str, calculated_weights, net_weights, less_price, unit_price, sub_total_amount, 
-                  packaging, transport, mandi, others, total_charges, total_amount, comment, paid_amount):
+def generate_bill(invoice_id, customer_name, agent_name,
+                  product_name, weight_str, rows,
+                  less_price, unit_price,
+                  sub_total_amount,
+                  packaging, transport, mandi, others,
+                  total_charges, total_amount,
+                  comment, paid_amount, invoice_date, transport_name):
+    invoice_date = datetime.strptime(invoice_date, "%Y-%m-%d")
+
     invoice_data = {
         'invoice_number': invoice_id,
-        'date': date.today().strftime('%d-%m-%Y'),
+        'date': invoice_date.strftime('%d-%m-%Y'),
+        'transport_name': transport_name,
         'customer_name': customer_name,
         'agent_name': agent_name,
-        'address': customer_name.split(',',1)[1] if len(customer_name.split(',',1))>1 else "",
+        'address': customer_name.split(',', 1)[1] if ',' in customer_name else "",
         'sub_total': sub_total_amount,
         'packaging': packaging,
-        'transport' : transport,
+        'transport': transport,
         'mandi': mandi,
-        'other' : others,
-        'total_charges' : total_charges,
-        'adjusted_amount' : paid_amount,
-        'total' : total_amount,
-        'comment' :comment
+        'other': others,
+        'total_charges': total_charges,
+        'adjusted_amount': paid_amount,
+        'total': total_amount,
+        'comment': comment
     }
 
     invoice_items = []
-    for product, wt_s, wt_c, wt_n, lp, up in zip(product_name,weight_str, calculated_weights, net_weights, less_price, unit_price):
+
+    for product, wt_s, row, lp, up in zip(product_name, weight_str, rows, less_price, unit_price):
         invoice_item = {
-            "Product" : product,
-            "Quantity_Str" : "  "+wt_s,
-            "Quantity" : wt_s.split('*')[0] if '*' in wt_s else sum(1 for num in wt_s.split('+') if num.strip()),
-            "Gross_Wt" : float(wt_c),
-            "Net_Wt" : wt_n,
-            "Less_Wt" : lp,
-            "Rate": up,
-            "Amount" : round((wt_n)*float(up),2)
-        }
+        "Product": product,
+        "Quantity_Str": wt_s,
+        "Quantity": row["qty"],
+        "Gross_Wt": row["gross_weight"],
+        "Net_Wt": row["net_weight"],
+        "Less_Wt": lp,      
+        "Rate": up,         
+        "Amount": row["amount"]}
         invoice_items.append(invoice_item)
 
-    # Render HTML template
-    html_content = render_template('invoice_template.html', invoice_data=invoice_data, invoice_items=invoice_items)
 
-    # Configure PDF options
+    html_content = render_template(
+        'invoice_template.html',
+        invoice_data=invoice_data,
+        invoice_items=invoice_items
+    )
+
     options = {
         'page-size': 'Letter',
         'margin-top': '0mm',
@@ -561,24 +704,23 @@ def generate_bill(invoice_id, customer_name, agent_name, product_name, weight_st
         'margin-left': '0mm',
     }
 
-    # Convert HTML to PDF
     pdf_file = pdfkit.from_string(html_content, False, options=options)
-    
-    folder_path = 'pdfs'  # Specify the folder path
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
 
-    file_name= str(invoice_id)+'.pdf'
+    folder_path = 'pdfs'
+    os.makedirs(folder_path, exist_ok=True)
+
+    file_name = f"{invoice_id}.pdf"
     file_path = os.path.join(folder_path, file_name)
-    with open(file_path, 'wb') as file:
-        file.write(pdf_file)
-    
-    # Create response with PDF attachment
+
+    with open(file_path, 'wb') as f:
+        f.write(pdf_file)
+
     response = make_response(pdf_file)
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = 'attachment; filename='+file_name
+    response.headers['Content-Disposition'] = f'attachment; filename={file_name}'
 
     return response
+
 
 @app.route("/invoice/delete/<invoice_id>", methods=["POST"])
 def delete_invoice(invoice_id):

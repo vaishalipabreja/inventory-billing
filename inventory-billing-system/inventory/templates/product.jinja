@@ -9,7 +9,6 @@
                 <th>Product Name</th>
                 <th>Quantity</th>
                 <th>Add Quantity</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -22,12 +21,9 @@
                         <!-- Add Quantity Form -->
                         <form action="{{ url_for('edit', type='product') }}" method="POST" class="d-flex">
                             <input type="hidden" name="prod_id" value="{{ product[0] }}">
-                            <input type="number" name="prod_qty" min="1" class="form-control me-2" placeholder="Add Quantity" required>
+                            <input type="number" name="prod_qty" step="any" class="form-control me-2" placeholder="Add Quantity" required>
                             <button type="submit" class="btn btn-success">Add</button>
                         </form>
-                    </td>
-                    <td>
-                        <a href="{{ url_for('delete', type='product', prod_id=product[0]) }}" class="btn btn-danger">Delete</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -37,7 +33,7 @@
             <tr>
                 <form action="{{ url_for('product') }}" method="POST" class="d-flex">
                     <td><input name="prod_name" type="text" class="form-control" placeholder="Product Name" required></td>
-                    <td><input name="prod_qty" type="number" min="1" class="form-control" placeholder="Quantity" required></td>
+                    <td><input name="prod_qty" type="number" step="any" class="form-control" placeholder="Quantity" required></td>
                     <td colspan="2">
                         <button type="submit" class="btn btn-info w-100">Add New Product</button>
                     </td>

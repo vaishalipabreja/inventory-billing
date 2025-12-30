@@ -1,24 +1,28 @@
 {% extends 'base-template.jinja' %}
+
 {% block content %}
 <div class="container my-4">
     <h3 class="text-center mb-4">Invoice Summary</h3>
 
     <!-- Search Form -->
-    <form id="searchForm" action="{{ url_for('invoice_history') }}" method="POST" class="mb-4 row g-3 align-items-center">
-        <div class="col-auto">
-            <label for="date" class="form-label"><b>Date:</b></label>
-            <input type="date" name="date" class="form-control">
+    <form action="{{ url_for('invoice_history') }}" method="POST" class="mb-4 row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label"><b>Date</b></label>
+            <input type="date" name="date" cl ass="form-control">
         </div>
-        <div class="col-auto">
-            <label for="customer" class="form-label"><b>Customer:</b></label>
+
+        <div class="col-md-3">
+            <label class="form-label"><b>Customer</b></label>
             <input type="text" name="customer" class="form-control" placeholder="Customer Name">
         </div>
-        <div class="col-auto">
-            <label for="agent" class="form-label"><b>Agent:</b></label>
+
+        <div class="col-md-3">
+            <label class="form-label"><b>Agent</b></label>
             <input type="text" name="agent" class="form-control" placeholder="Agent Name">
         </div>
-        <div class="col-auto align-self-end">
-            <input type="submit" class="btn btn-info" value="Search">
+
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-info w-100">Search</button>
         </div>
     </form>
 
@@ -28,41 +32,28 @@
         </div>
     {% else %}
         <div class="table-responsive">
-            <table class="table table-striped table-bordered align-middle">
+            <table class="table table-bordered table-striped align-middle">
                 <thead class="table-dark">
                     <tr>
-                        <th scope="col">Invoice Number</th>
-                        <th scope="col">Customer Name</th>
-                        <th scope="col">Agent Name</th>
-                        <th scope="col">Date</th>
-                        <th scope="col">Total Amount</th>
-                        <th scope="col">Paid Amount</th>
-                        <th scope="col">Balance</th>
-                        <th scope="col">Action</th>
+                        <th>Invoice No</th>
+                        <th>Customer</th>
+                        <th>Agent</th>
+                        <th>Total</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
                     </tr>
                 </thead>
+
                 <tbody>
                 {% for invoice in invoices %}
-                <tr>
-                    <td>{{ invoice[0] }}</td>
-                    <td>{{ invoice[1] }}</td>
-                    <td>{{ invoice[2] }}</td>
-                    <td>{{ invoice[3] }}</td>
-                    <td>{{ "%.2f"|format(invoice[4]) }}</td>
-                    <td>{{ "%.2f"|format(invoice[5]) }}</td>
-                    <td>{{ "%.2f"|format(invoice[4] - invoice[5]) }}</td>
-                    <td>
-                        {% if loop.first %}
-                        <!-- Delete button only for the latest invoice -->
-                        <form action="{{ url_for('delete_invoice', invoice_id=invoice[0]) }}"
-                              method="POST"
-                              style="display:inline;"
-                              onsubmit="return confirm('Are you sure you want to delete this invoice?');">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
-                        {% endif %}
-                    </td>
-                </tr>
+                    <tr>
+                        <td>{{ invoice[0] }}</td>
+                        <td>{{ invoice[1] }}</td>
+                        <td>{{ invoice[2] }}</td>
+                        <td>{{ "%.2f"|format(invoice[3]) }}</td>
+                        <td>{{ "%.2f"|format(invoice[4]) }}</td>
+                        <td>{{ "%.2f"|format(invoice[3] - invoice[4]) }}</td>
+                    </tr>
                 {% endfor %}
                 </tbody>
             </table>

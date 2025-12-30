@@ -10,6 +10,18 @@
     <form id="invoice" action="{{ url_for('invoice') }}" method="POST">
         <h3 class="mb-3">Create Invoice</h3>
 
+<!-- Invoice Date -->
+<div class="mb-3">
+    <label for="invoice_date" class="form-label"><b>Date:</b></label>
+    <input type="date" id="invoice_date" name="invoice_date" class="form-control" 
+           value="{{ current_date }}" required>
+</div>
+
+<div class="mb-3">
+            <label class="form-label"><b>Transport:</b></label>
+            <input type="text" class="form-control" name="transportname" placeholder="Transport Name">
+        </div>
+
         <!-- Customer Selection -->
         <div class="mb-3">
             <label for="customer_name" class="form-label"><b>Customer Name:</b></label>
@@ -89,14 +101,20 @@
 </div>
 
 <script>
+$(document).on('click', '.removeProduct', function() {
+        $(this).closest('tr').remove();
+        updateTotals();
+    });
+
 $(document).ready(function() {
     $('.select2').select2({ width: '100%' });
 
     function addProductRow() {
-        const products = `{% for product in products %}<option>{{ product[1] }}</option>{% endfor %}`;
+        const products = `{% for product in products %}<option>{{product[1]}}</option>{% endfor %}`;
         const row = `<tr>
             <td><select name="product_name" class="form-control select2" required>${products}</select></td>
-            <td><input type="text" name="weight_str" class="form-control" placeholder="Weight (1*24 or 3.5+2.8)" required></td>
+            <td><input type="text" name="weight_str" class="weight-input" placeholder="e.g. 65/4, 7x9, 5+3" required></td>
+            <input type="hidden" name="calc_type" class="calc-type">
             <td><input type="number" step="0.01" name="unit_price" class="form-control" placeholder="Rate" required></td>
             <td><input type="number" step="0.01" name="less_price" class="form-control" value="0" required></td>
             <td><button type="button" class="btn btn-danger removeProduct">Remove</button></td>
@@ -107,45 +125,94 @@ $(document).ready(function() {
     }
 
     $('#addProduct').click(addProductRow);
-
-    $(document).on('click', '.removeProduct', function() {
-        $(this).closest('tr').remove();
-        updateTotals();
-    });
-
-    function parseWeight(weightStr) {
-        try { return eval(weightStr) || 0; } 
-        catch { return 0; }
-    }
-
-    function updateTotals() {
-        let subtotal = 0;
-
-        $('#invoice-items tbody tr').each(function() {
-            const weight = parseWeight($(this).find('input[name="weight_str"]').val());
-            const rate = parseFloat($(this).find('input[name="unit_price"]').val()) || 0;
-            const less = parseFloat($(this).find('input[name="less_price"]').val()) || 0;
-            const netWeight = Math.max(weight - less, 0);
-
-            subtotal += netWeight * rate;
-        });
-
-        $('#subtotalText').text(subtotal.toFixed(2));
-
-        // Sum additional charges
-        let additionalCharges = 0;
-        $('.charge-input').each(function() {
-            additionalCharges += parseFloat($(this).val()) || 0;
-        });
-        $('#additionalChargesText').text(additionalCharges.toFixed(2));
-
-        const grandTotal = subtotal + additionalCharges;
-        $('#grandTotalText').text(grandTotal.toFixed(2));
-    }
-
-    $(document).on('input', 'input[name="weight_str"], input[name="unit_price"], input[name="less_price"], .charge-input', updateTotals);
-
     addProductRow(); // initial row
 });
+function parseExpr(expr) {
+    expr = expr.replace(/\s+/g, "").toLowerCase();
+    if (!expr) return null;
+
+    // 7x9
+    if (expr.includes("x")) {
+        const [qty, perBag] = expr.split("x");
+        const q = parseInt(qty) || 0;
+        const p = parseFloat(perBag) || 0;
+        return {
+            type: "bag",
+            qty: q,
+            gross: q * p
+        };
+    }
+
+    // 65/4 (MUST come before math)
+    if (expr.match(/^\d+(\.\d+)?\/\d+$/)) {
+        const [gross, qty] = expr.split("/");
+        return {
+            type: "gross",
+            qty: parseInt(qty),
+            gross: parseFloat(gross)
+        };
+    }
+
+    // normal math: 5+3, 1*4
+    try {
+        const value = Function(`"use strict";return (${expr})`)();
+        return {
+            type: "normal",
+            qty: 1,
+            gross: parseFloat(value) || 0
+        };
+    } catch {
+        return null;
+    }
+}
+
+function updateTotals() {
+    let subtotal = 0;
+
+    $('#invoice-items tbody tr').each(function () {
+        const expr = $(this).find('input[name="weight_str"]').val();
+        const rate = parseFloat($(this).find('input[name="unit_price"]').val()) || 0;
+        const less = parseFloat($(this).find('input[name="less_price"]').val()) || 0;
+
+        const data = parseExpr(expr);
+        console.log(data);
+        if (!data) return;
+
+        const netWeight = Math.max(data.gross - less, 0);
+
+        let amount = 0;
+        if (data.type === "bag") {
+            amount = data.qty * rate;      // ✔ 7x9
+        } else {
+            amount = netWeight * rate;     // ✔ 65/4 & normal
+        }
+
+        subtotal += amount;
+        console.log(subtotal);
+    });
+    console.log(subtotal);
+    $('#subtotalText').text(subtotal.toFixed(2));
+
+    let charges = 0;
+    $('.charge-input').each(function () {
+        charges += parseFloat($(this).val()) || 0;
+    });
+
+    $('#additionalChargesText').text(charges.toFixed(2));
+    $('#grandTotalText').text((subtotal + charges).toFixed(2));
+}
+
+/* 🔑 IMPORTANT: delegated event */
+$(document).on(
+    'input',
+    'input[name="weight_str"], input[name="unit_price"], input[name="less_price"], .charge-input',
+    updateTotals
+);
+
+$(document).ready(function () {
+    updateTotals();
+});
+
+
 </script>
 {% endblock %}
