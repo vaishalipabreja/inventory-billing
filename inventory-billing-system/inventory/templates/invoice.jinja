@@ -38,6 +38,7 @@
             <thead class="table-dark">
                 <tr>
                     <th>Product</th>
+                    <th>Marka</th>
                     <th>Weight</th>
                     <th>Rate</th>
                     <th>Less Weight</th>
@@ -113,8 +114,8 @@ $(document).ready(function() {
         const products = `{% for product in products %}<option>{{product[1]}}</option>{% endfor %}`;
         const row = `<tr>
             <td><select name="product_name" class="form-control select2" required>${products}</select></td>
+            <td><input type="text" name="marka" class="marka" placeholder=""></td>
             <td><input type="text" name="weight_str" class="weight-input" placeholder="e.g. 65/4, 7x9, 5+3" required></td>
-            <input type="hidden" name="calc_type" class="calc-type">
             <td><input type="number" step="0.01" name="unit_price" class="form-control" placeholder="Rate" required></td>
             <td><input type="number" step="0.01" name="less_price" class="form-control" value="0" required></td>
             <td><button type="button" class="btn btn-danger removeProduct">Remove</button></td>

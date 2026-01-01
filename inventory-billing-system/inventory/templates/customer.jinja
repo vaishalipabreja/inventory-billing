@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Customers</h2>
-    <table class="table table-bordered table-hover">
+    <table class="table table-bordered table-hover table-sm">
         <thead class="table-light">
             <tr>
                 <th scope="col">Customer Name</th>
@@ -18,8 +18,8 @@
                 <td>{{ customer[1] }}</td>
                 <td>{{ customer[2] }}</td>
                 <td>
-                    <a href="{{ url_for('customer_details', customer_name=customer[0], agent_name=customer[1]) }}" class="btn btn-success mb-1">View Details</a>
-                    <button type="button" class="btn btn-primary mb-1" 
+                    <a href="{{ url_for('customer_details', customer_name=customer[0], agent_name=customer[1]) }}" class="btn btn-success btn-sm">View Details</a>
+                    <button type="button" class="btn btn-primary btn-sm" 
                             data-bs-toggle="modal" 
                             data-bs-target="#editModal{{ loop.index }}">
                         Edit Name

@@ -6,6 +6,7 @@ from reportlab.pdfgen import canvas
 import pdfkit
 from datetime import date, datetime
 import uuid
+from weasyprint import HTML
 
 # imports - third party imports
 from flask import Flask, redirect, render_template, request, jsonify, render_template, make_response, send_file
@@ -382,6 +383,7 @@ def invoice():
             customer_id = get_customer_id(conn, customer_name, agent_name)
 
             product_name = request.form.getlist("product_name")
+            marka = request.form.getlist("marka")
             weight_str = request.form.getlist("weight_str")
             unit_price = request.form.getlist("unit_price")
             less_price = request.form.getlist("less_price")
@@ -492,7 +494,8 @@ def invoice():
     comment,
     extra_payment,
     invoice_date,
-    transport_name)
+    transport_name,
+    marka)
 
     return render_template(
         "invoice.jinja",
@@ -523,7 +526,7 @@ def searchProduct():
     with sqlite3.connect(DATABASE_NAME) as conn:
         keyword = request.json.get('keyword').strip()
         if keyword:
-            products = conn.execute(f"SELECT prod_id, prod_name FROM products where prod_name LIKE '{keyword}%'").fetchall()
+            products = conn.execute(f"SELECT prod_id, prod_name FROM products where prod_name LIKE '{keyword}%' LIMIT 20").fetchall()
             results = [{'id': product[0], 'name': product[1]} for product in products]
     return jsonify(results)
 
@@ -647,16 +650,16 @@ def record():
 
     return redirect(VIEWS["Customer"])
 
-
 def generate_bill(invoice_id, customer_name, agent_name,
                   product_name, weight_str, rows,
                   less_price, unit_price,
                   sub_total_amount,
                   packaging, transport, mandi, others,
                   total_charges, total_amount,
-                  comment, paid_amount, invoice_date, transport_name):
-    invoice_date = datetime.strptime(invoice_date, "%Y-%m-%d")
+                  comment, paid_amount, invoice_date, transport_name, marka):
 
+    # Convert date to desired format
+    invoice_date = datetime.strptime(invoice_date, "%Y-%m-%d")
     invoice_data = {
         'invoice_number': invoice_id,
         'date': invoice_date.strftime('%d-%m-%Y'),
@@ -675,50 +678,42 @@ def generate_bill(invoice_id, customer_name, agent_name,
         'comment': comment
     }
 
+    # Build the invoice items list
     invoice_items = []
+    for product, m, wt_s, row, lp, up in zip(product_name, marka, weight_str, rows, less_price, unit_price):
+        invoice_items.append({
+            "Product": product + "/" + m,
+            "Quantity_Str": wt_s,
+            "Quantity": row.get("qty", ""),
+            "Gross_Wt": row.get("gross_weight", ""),
+            "Net_Wt": row.get("net_weight", ""),
+            "Less_Wt": lp,
+            "Rate": up,
+            "Amount": row.get("amount", "")
+        })
 
-    for product, wt_s, row, lp, up in zip(product_name, weight_str, rows, less_price, unit_price):
-        invoice_item = {
-        "Product": product,
-        "Quantity_Str": wt_s,
-        "Quantity": row["qty"],
-        "Gross_Wt": row["gross_weight"],
-        "Net_Wt": row["net_weight"],
-        "Less_Wt": lp,      
-        "Rate": up,         
-        "Amount": row["amount"]}
-        invoice_items.append(invoice_item)
-
-
+    # Render the template (no MAX_ROWS limit)
     html_content = render_template(
         'invoice_template.html',
         invoice_data=invoice_data,
         invoice_items=invoice_items
     )
 
-    options = {
-        'page-size': 'Letter',
-        'margin-top': '0mm',
-        'margin-right': '0mm',
-        'margin-bottom': '0mm',
-        'margin-left': '0mm',
-    }
+    # Generate PDF
+    pdf_file = HTML(string=html_content).write_pdf()
 
-    pdf_file = pdfkit.from_string(html_content, False, options=options)
-
+    # Save PDF to folder
     folder_path = 'pdfs'
     os.makedirs(folder_path, exist_ok=True)
-
     file_name = f"{invoice_id}.pdf"
     file_path = os.path.join(folder_path, file_name)
-
     with open(file_path, 'wb') as f:
         f.write(pdf_file)
 
+    # Return as download
     response = make_response(pdf_file)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename={file_name}'
-
     return response
 
 

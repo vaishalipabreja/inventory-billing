@@ -1,215 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice — {{ invoice_data.invoice_number }}</title>
+<meta charset="UTF-8">
+<title>Invoice — {{ invoice_data.invoice_number }}</title>
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            margin: 0;
-            padding: 0;
-        }
-        .container { padding: 20px; }
+<style>
+/* ================= PAGE ================= */
+@page {
+    size: A6;
+    margin: 2mm;
+}
 
-        h1 {
-            text-align: center;
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        h3 {
-            text-align: center;
-        }
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", "Arial", sans-serif;
+    font-size: 11px;
+    color: #000;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 8px;
-        }
+* {
+    box-sizing: border-box;
+    word-wrap: break-word;
+}
 
-        th, td {
-            padding: 6px 8px;
-        }
+/* ================= CONTAINER ================= */
+.page {
+    min-height: 148mm;
+    padding: 5mm;
+    display: flex;
+    flex-direction: column;
+}
 
-        .main-table {
-            border-collapse: separate; /* needed for dotted row borders */
-            border-spacing: 0;
-        }
+/* ================= HEADER ================= */
+.header {
+    text-align: center;
+}
 
-        .main-table th, .main-table td {
-            border: 1px solid #444;
-        }
+.header .brand {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    position: absolute;
+    top: 5mm;
+    left: 5mm;
+}
 
-        .no-border td {
-            border: none;
-            padding: 4px 8px;
-        }
+.header .tagline {
+    font-size: 8px;
+    font-style: italic;
+    color: #555;
+}
 
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
+/* ================= META ================= */
+.meta {
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
 
-        /* Dotted bordered row for Quantity_Str */
-        .dotted-row td {
-            border: 1px dashed #444; /* dotted border all around */
-            padding: 4px 8px;
-            font-size: 11px;
-            color: #555;
-        }
+.meta-left, .meta-right {
+    display: flex;
+    flex-direction: column;
+}
 
-        .charges-table {
-            border: 1px solid #444;
-            border-collapse: collapse;
-        }
-        .charges-table th, .charges-table td {
-            border: none;
-            padding: 6px 8px;
-        }
-        .charges-table th {
-            border-bottom: 1px solid #444;
-            font-weight: bold;
-        }
-        .charges-table td {
-            border-top: 1px solid #444;
-        }
+.meta-row {
+    line-height: 1.4;
+}
 
-        .totals td {
-            font-weight: bold;
-            background: #f2f2f2;
-            border: 1px solid #444;
-        }
+.meta-row .label {
+    font-weight: bold;
+}
 
-        .comment {
-            margin-top: 8px;
-            font-style: italic;
-        }
+.meta-row .value {
+    font-weight: normal;
+    margin-left: 4px; /* small space between label and value */
+}
 
-        .split-section {
-            display: table;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .left-block, .right-block {
-            display: table-cell;
-            vertical-align: top;
-        }
-        .left-block { width: 50%; }
-        .right-block { width: 50%; }
-    </style>
+/* ================= SEPARATOR ================= */
+.sep {
+    border-top: 1px dashed #000;
+    margin: 1px 0;
+}
+
+/* ================= GRID ================= */
+.row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    height: fit-content;
+}
+
+.cell {
+    padding: 1px 1px;
+    word-break: break-word;
+}
+
+/* Column widths */
+.col-product { width: 25%; text-align: left; }
+.col-quantity{ width: 10%;  text-align: right; }
+.col-gross   { width: 12%; text-align: right; }
+.col-less    { width: 12%; text-align: right; }
+.col-net     { width: 12%; text-align: right; }
+.col-rate    { width: 14%; text-align: right; }
+.col-amount  { width: 15%; text-align: right; }
+
+/* ================= ITEMS ================= */
+.items-head {
+    font-weight: bold;
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+}
+
+.item-row {
+    border-bottom: 1px dotted #999;
+}
+
+/* Quantity row highlight */
+.qty-row {
+    border: 1px dashed #000;
+    margin: 2px 0;
+    font-size: 10px;
+}
+
+/* Description row */
+.desc {
+    font-size: 9px;
+    padding: 2px 0 3px 4px;
+    color: #444;
+}
+
+/* ================= TOTALS ================= */
+.totals-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+    height: 12px;
+}
+
+.totals-table td, .totals-table th {
+    padding: 3px 5px;
+    border: 1px solid #ddd;
+}
+
+.totals-table .label {
+    text-align: left;
+    font-weight: bold;
+}
+
+.totals-table .value {
+    text-align: right;
+}
+
+.totals-table .net-amount {
+    font-weight: bold;
+    background-color: #f0f0f0;
+}
+
+/* ================= CHARGES ================= */
+.charges {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+}
+
+.charge {
+    width: 24%;
+    text-align: center;
+}
+
+.charge span {
+    display: block;
+}
+
+/* ================= FOOTER ================= */
+.comment {
+    font-style: italic;
+    text-align: left;
+}
+.estimate-label {
+    position: absolute;
+    top: 5mm;
+    right: 5mm;
+    font-size: 10px;        /* smaller */
+    font-weight: bold;
+    color: #333;            /* slightly lighter than black */
+    text-transform: uppercase;
+}
+
+</style>
 </head>
+
 <body>
+<div class="page">
+    <div class="estimate-label">ESTIMATE</div>
 
-<div class="container">
-
-    <h1>TRG</h1>
-    <h3>||OM SHREE GANESHAYA NAMAH||</h3>
-
-    <!-- Invoice Meta -->
-    <table class="no-border">
-        <tr>
-            <td><strong>Invoice No:</strong> {{ invoice_data.invoice_number }}</td>
-            <td class="text-right"><strong>Date:</strong> {{ invoice_data.date }}</td>
-        </tr>
-        <tr>
-            <td><strong>Customer:</strong> {{ invoice_data.customer_name }}</td>
-            <td class="text-right"><strong>Agent:</strong> {{ invoice_data.agent_name }}</td>
-        </tr>
-        <tr>
-            <td><strong>Address:</strong> {{ invoice_data.address }}</td>
-            <td class="text-right"><strong>Transport:</strong> {{ invoice_data.transport_name }}</td>
-        </tr>
-    </table>
-
-    <!-- Items -->
-    <table class="main-table">
-        <thead>
-            <tr>
-                <th class="text-left">Product</th>
-                <th class="text-center">Qty</th>
-                <th class="text-right">G.Wt</th>
-                <th class="text-right">L.Wt</th>
-                <th class="text-right">N.Wt</th>
-                <th class="text-right">Rate</th>
-                <th class="text-right">Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in invoice_items %}
-            <tr>
-                <td class="text-left">{{ item.Product }}</td>
-                <td class="text-center">{{ item.Quantity }}</td>
-                <td class="text-right">{{ "%.2f"|format(item.Gross_Wt | float) }}</td>
-                <td class="text-right">{{ "%.2f"|format(item.Less_Wt | float) }}</td>
-                <td class="text-right">{{ "%.2f"|format(item.Net_Wt | float) }}</td>
-                <td class="text-right">{{ "%.2f"|format(item.Rate | float) }}</td>
-                <td class="text-right">{{ "%.2f"|format(item.Amount | float) }}</td>
-            </tr>
-            <!-- Dotted bordered row -->
-            <tr class="dotted-row">
-                <td colspan="7">{{ item.Quantity_Str }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <!-- Charges + Totals -->
-    <div class="split-section">
-
-        <!-- LEFT: Charges + Comment -->
-        <div class="left-block">
-
-            <!-- Charges table with single header line and single value line -->
-            <table class="charges-table">
-                <tr>
-                    <th class="text-center">Packaging</th>
-                    <th class="text-center">Transport</th>
-                    <th class="text-center">Mandi</th>
-                    <th class="text-center">Others</th>
-                </tr>
-                <tr>
-                    <td class="text-center">{{ "%.2f"|format(invoice_data.packaging | float) }}</td>
-                    <td class="text-center">{{ "%.2f"|format(invoice_data.transport | float) }}</td>
-                    <td class="text-center">{{ "%.2f"|format(invoice_data.mandi | float) }}</td>
-                    <td class="text-center">{{ "%.2f"|format(invoice_data.other | float) }}</td>
-                </tr>
-            </table>
-
-            <!-- Comment -->
-            {% if invoice_data.comment %}
-            <div class="comment">
-                <strong>Comment:</strong><br>
-                {{ invoice_data.comment }}
-            </div>
-            {% endif %}
-
-        </div>
-
-        <!-- RIGHT: Subtotal & Totals -->
-        <div class="right-block">
-            <table>
-                <tbody>
-                    <tr class="totals">
-                        <td class="text-left">Subtotal</td>
-                        <td class="text-right">{{ "%.2f"|format(invoice_data.sub_total | float) }}</td>
-                    </tr>
-                    <tr class="totals">
-                        <td class="text-left">Total Charges</td>
-                        <td class="text-right">{{ "%.2f"|format(invoice_data.total_charges | float) }}</td>
-                    </tr>
-                    <tr class="totals">
-                        <td class="text-left"><strong>Net Amount</strong></td>
-                        <td class="text-right"><strong>{{ "%.2f"|format(invoice_data.total | float) }}</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-    </div>
-
+<!-- ================= HEADER ================= -->
+<div class="header">
+    <div class="brand">TRG</div>
+    <div class="tagline">|| OM SHREE GANESHAYA NAMAH ||</div>
 </div>
 
+<!-- ================= META ================= -->
+<div class="meta">
+    <!-- Left side: Invoice, Date, Customer -->
+    <div class="meta-left">
+        <div class="meta-row">
+            <span class="label">Invoice No:</span>
+            <span class="value">{{ invoice_data.invoice_number }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="label">Customer:</span>
+            <span class="value">{{ invoice_data.customer_name }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="label">Address:</span>
+            <span class="value">{{ invoice_data.address }}</span>
+        </div>
+    </div>
+
+    <div class="meta-right">
+        <div class="meta-row">
+            <span class="label">Date:</span>
+            <span class="value">{{ invoice_data.date }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="label">Agent:</span>
+            <span class="value">{{ invoice_data.agent_name }}</span>
+        </div>
+        <div class="meta-row">
+            <span class="label">Transport:</span>
+            <span class="value">{{ invoice_data.transport_name }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="sep"></div>
+
+<!-- ================= ITEMS HEADER ================= -->
+<div class="row items-head">
+    <div class="cell col-product">Product</div>
+    <div class="cell col-quantity">Qty</div>
+    <div class="cell col-gross">G.Wt</div>
+    <div class="cell col-less">L.Wt</div>
+    <div class="cell col-net">N.Wt</div>
+    <div class="cell col-rate">Rate</div>
+    <div class="cell col-amount">Amount</div>
+</div>
+
+<!-- ================= ITEMS ================= -->
+{% for item in invoice_items %}
+<div class="row item-row">
+    <div class="cell col-product">{{ item.Product }}</div>
+    <div class="cell col-quantity">{{ item.Quantity }}</div>
+    <div class="cell col-gross">{{ item.Gross_Wt }}</div>
+    <div class="cell col-less">{{ item.Less_Wt }}</div>
+    <div class="cell col-net">{{ item.Net_Wt }}</div>
+    <div class="cell col-rate">{{ item.Rate }}</div>
+    <div class="cell col-amount">{{ item.Amount }}</div>
+</div>
+
+<div class="row qty-row">
+    <div class="cell col-product">{{ item.Quantity_Str }}</div>
+    <div class="cell col-gross"></div>
+    <div class="cell col-less"></div>
+    <div class="cell col-net"></div>
+    <div class="cell col-rate"></div>
+    <div class="cell col-amount"></div>
+</div>
+{% endfor %}
+
+<!-- ================= CHARGES ================= -->
+<div class="charges">
+    <div class="charge">Packaging<span>{{ "%.2f"|format(invoice_data.packaging|float) }}</span></div>
+    <div class="charge">Transport<span>{{ "%.2f"|format(invoice_data.transport|float) }}</span></div>
+    <div class="charge">Mandi<span>{{ "%.2f"|format(invoice_data.mandi|float) }}</span></div>
+    <div class="charge">Others<span>{{ "%.2f"|format(invoice_data.other|float) }}</span></div>
+</div>
+
+<!-- ================= TOTALS ================= -->
+<table class="totals-table">
+    <tr>
+        <td class="label">Subtotal</td>
+        <td class="value">{{ "%.2f"|format(invoice_data.sub_total|float) }}</td>
+    </tr>
+    <tr>
+        <td class="label">Total Charges</td>
+        <td class="value">{{ "%.2f"|format(invoice_data.total_charges|float) }}</td>
+    </tr>
+    <tr>
+        <td class="label net-amount">NET AMOUNT</td>
+        <td class="value net-amount">{{ "%.2f"|format(invoice_data.total|float) }}</td>
+    </tr>
+</table>
+
+{% if invoice_data.comment %}
+<div class="comment">
+    Note: {{ invoice_data.comment }}
+</div>
+{% endif %}
+
+</div>
 </body>
 </html>
