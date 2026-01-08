@@ -110,20 +110,51 @@ $(document).on('click', '.removeProduct', function() {
 $(document).ready(function() {
     $('.select2').select2({ width: '100%' });
 
-    function addProductRow() {
-        const products = `{% for product in products %}<option>{{product[1]}}</option>{% endfor %}`;
-        const row = `<tr>
-            <td><select name="product_name" class="form-control select2" required>${products}</select></td>
-            <td><input type="text" name="marka" class="marka" placeholder=""></td>
-            <td><input type="text" name="weight_str" class="weight-input" placeholder="e.g. 65/4, 7x9, 5+3" required></td>
-            <td><input type="number" step="0.01" name="unit_price" class="form-control" placeholder="Rate" required></td>
-            <td><input type="number" step="0.01" name="less_price" class="form-control" value="0" required></td>
+function addProductRow() {
+    const products = `
+        <option value=""></option>
+        {% for product in products %}
+        <option value="{{ product[1] }}">{{ product[1] }}</option>
+        {% endfor %}
+    `;
+
+    const rowHtml = `
+        <tr>
+            <td>
+                <select name="product_name" class="form-control product-select" required>
+                    ${products}
+                </select>
+            </td>
+            <td><input type="text" name="marka" class="form-control"></td>
+            <td><input type="text" name="weight_str" class="form-control" required></td>
+            <td><input type="number" step="0.01" name="unit_price" class="form-control" required></td>
+            <td><input type="number" step="0.01" name="less_price" class="form-control" value="0"></td>
             <td><button type="button" class="btn btn-danger removeProduct">Remove</button></td>
-        </tr>`;
-        $('#invoice-items tbody').append(row);
-        $('.select2').select2({ width: '100%' });
-        updateTotals();
-    }
+        </tr>
+    `;
+
+    const $row = $(rowHtml);
+    $('#invoice-items tbody').append($row);
+
+    const $select = $row.find('.product-select');
+
+    $select.select2({
+        width: '100%',
+        placeholder: 'Search product…',
+        allowClear: true,
+        dropdownParent: $('#invoice')
+    });
+
+    // 🔑 WHEN TAB FOCUSES THE FIELD → OPEN + FOCUS SEARCH
+    $select.on('select2:open', function () {
+        setTimeout(() => {
+            document.querySelector('.select2-search__field')?.focus();
+        }, 0);
+    });
+}
+
+
+
 
     $('#addProduct').click(addProductRow);
     addProductRow(); // initial row
@@ -214,6 +245,25 @@ $(document).ready(function () {
     updateTotals();
 });
 
+$('#customer_name').select2({
+    width: '100%',
+    placeholder: 'Search customer…'
+});
+
+$(document).on('focus', '.select2-selection', function () {
+    const $select = $(this).closest('.select2-container').prev('select');
+    if ($select.length && !$select.select2('isOpen')) {
+        $select.select2('open');
+    }
+});
+
+
+// 🔑 When opened → focus search box
+$(document).on('select2:open', function () {
+    setTimeout(() => {
+        document.querySelector('.select2-search__field')?.focus();
+    }, 0);
+});
 
 </script>
 {% endblock %}
