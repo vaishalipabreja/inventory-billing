@@ -78,7 +78,29 @@ def init_database():
     with sqlite3.connect(DATABASE_NAME) as conn:
         for table_definition in [PRODUCTS, INVOICES, CUSTOMERS, INVOICE_ITEMS, PAYMENTS]:
             conn.execute(f"CREATE TABLE IF NOT EXISTS {table_definition}")
+    run_startup_migrations()
 
+def column_exists(cursor, table_name, column_name):
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = [row[1] for row in cursor.fetchall()]
+    return column_name in columns
+
+def run_startup_migrations():
+    with sqlite3.connect(DATABASE_NAME) as conn:
+        cursor = conn.cursor()
+
+        # ---- Migration: add payment_mode to payments ----
+        if not column_exists(cursor, "payments", "payment_mode"):
+            cursor.execute("""
+                ALTER TABLE payments
+                ADD COLUMN payment_mode TEXT NOT NULL DEFAULT 'cash'
+            """)
+
+        # ---- Future migrations go here ----
+        # if not column_exists(cursor, "table", "column"):
+        #     cursor.execute("ALTER TABLE table ADD COLUMN column TYPE")
+
+        conn.commit()
 
 app.init_db = init_database
 
@@ -183,7 +205,6 @@ def calculate_row(expr, unit_price, less_weight):
     qty = calculate_qty(expr)
     net_weight = round(value - less_weight,2)
     amount = round(net_weight * unit_price, 2)
-    print(net_weight)
 
     return {
         "qty": qty,
@@ -226,7 +247,7 @@ def customer_details():
     if customer_id:
         # Fetch invoices and payments for the customer
         invoices_query = "SELECT invoice_id, total_amount, paid_amount, invoice_time FROM invoices WHERE customer_id=?"
-        payments_query = "SELECT payment_id, payment_amount, discount_amount, payment_time FROM payments WHERE customer_id=?"
+        payments_query = "SELECT payment_id, payment_amount, discount_amount, payment_mode, payment_time FROM payments WHERE customer_id=?"
 
         invoices = conn.execute(invoices_query, (customer_id,)).fetchall()
         payments = conn.execute(payments_query, (customer_id,)).fetchall()
@@ -373,7 +394,6 @@ def invoice():
     if request.method == "POST":
         with sqlite3.connect(DATABASE_NAME) as conn:
             invoice_id = generate_unique_bill_number()
-            print(invoice_id)
 
             invoice_date = request.form.get("invoice_date")
             customer_raw = request.form.get("customer_name")
@@ -442,7 +462,6 @@ def invoice():
             transaction_allowed = True
 
             for deduct_qty, product in zip(stock_deductions, product_name):
-                print(products)
                 row = conn.execute(
                     "SELECT prod_qty FROM products WHERE TRIM(prod_name) = TRIM(?)",(product,)).fetchone()
                 current_qty = row[0] if row else 0
@@ -581,6 +600,7 @@ def record():
     agent_name = request.form["agent_name"]
     discount = float(request.form.get("discount", 0))
     amount = float(request.form.get("amount", 0))
+    payment_mode = request.form["payment_mode"]
     
     # Total applied to invoices
     effective_payment = amount + discount
@@ -599,8 +619,8 @@ def record():
 
         # 1️⃣ Save the payment record
         conn.execute(
-            "INSERT INTO payments (customer_id, payment_amount, discount_amount, payment_time) VALUES (?, ?, ?, ?)",
-            (customer_id, amount, discount, payment_time)
+            "INSERT INTO payments (customer_id, payment_amount, payment_mode, discount_amount, payment_time) VALUES (?, ?, ?, ?, ?)",
+            (customer_id, amount, payment_mode, discount, payment_time)
         )
 
         # 2️⃣ Apply to invoices FIFO as paid_amount
