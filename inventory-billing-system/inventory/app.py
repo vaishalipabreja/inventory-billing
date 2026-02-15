@@ -177,10 +177,10 @@ def calculate_row(expr, unit_price, less_weight):
 
         return {
             "qty": qty,
-            "gross_weight": gross,
-            "net_weight": net_weight,
-            "stock_deduct": net_weight,
-            "amount": amount
+            "gross_weight": round(gross,2),
+            "net_weight": round(net_weight,2),
+            "stock_deduct": round(net_weight,2),
+            "amount": round(amount,2)
         }
 
     # Case 2: "7x9"
@@ -194,10 +194,10 @@ def calculate_row(expr, unit_price, less_weight):
 
         return {
             "qty": qty,
-            "gross_weight": gross,
-            "net_weight": net_weight,
-            "stock_deduct": net_weight,
-            "amount": amount
+            "gross_weight": round(gross,2),
+            "net_weight": round(net_weight,2),
+            "stock_deduct": round(net_weight,2),
+            "amount": round(amount,2)
         }
 
     # Case 3: normal arithmetic (1*4, 5+7.8)
@@ -207,11 +207,11 @@ def calculate_row(expr, unit_price, less_weight):
     amount = round(net_weight * unit_price, 2)
 
     return {
-        "qty": qty,
-        "gross_weight": value,
-        "net_weight": net_weight,
-        "stock_deduct": net_weight,
-        "amount": amount
+    "qty": qty,
+    "gross_weight": round(value, 2),
+    "net_weight": round(net_weight, 2),
+    "stock_deduct": round(net_weight, 2),
+    "amount": round(amount, 2)
     }
 
 import ast, operator
@@ -246,7 +246,7 @@ def customer_details():
 
     if customer_id:
         # Fetch invoices and payments for the customer
-        invoices_query = "SELECT invoice_id, total_amount, paid_amount, invoice_time FROM invoices WHERE customer_id=?"
+        invoices_query = "SELECT invoice_id, total_amount, paid_amount, invoice_time FROM invoices WHERE customer_id=? ORDER BY invoice_time ASC"
         payments_query = "SELECT payment_id, payment_amount, discount_amount, payment_mode, payment_time FROM payments WHERE customer_id=?"
 
         invoices = conn.execute(invoices_query, (customer_id,)).fetchall()
@@ -301,6 +301,7 @@ def invoice_history():
     query = """
         SELECT
             invoices.invoice_id,
+            invoices.invoice_time,
             customers.customer_name,
             customers.agent_name,
             invoices.total_amount,
@@ -464,17 +465,17 @@ def invoice():
             for deduct_qty, product in zip(stock_deductions, product_name):
                 row = conn.execute(
                     "SELECT prod_qty FROM products WHERE TRIM(prod_name) = TRIM(?)",(product,)).fetchone()
-                current_qty = row[0] if row else 0
-
-                print(current_qty)
-
+                current_qty = round(row[0], 2) if row else 0
+                
                 if deduct_qty > current_qty:
                     transaction_allowed = False
                     break
 
+                new_qty = round(current_qty - deduct_qty, 2)
+
                 conn.execute(
                     "UPDATE products SET prod_qty = ? WHERE prod_name = ?",
-                    (current_qty - deduct_qty, product)
+                    (new_qty, product)
                 )
 
             if not transaction_allowed:
@@ -667,8 +668,8 @@ def record():
             """, (remaining, customer_id))
 
         conn.commit()
-
-    return redirect(VIEWS["Customer"])
+    
+    return redirect(f"/customer_details?customer_name={customer_name}&agent_name={agent_name}")
 
 def generate_bill(invoice_id, customer_name, agent_name,
                   product_name, weight_str, rows,
